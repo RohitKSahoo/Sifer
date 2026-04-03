@@ -15,27 +15,26 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Home
-import androidx.compose.material.icons.filled.List
-import androidx.compose.material.icons.filled.Settings
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.rohit.sifer.ui.*
 import com.rohit.sifer.ui.theme.SiferTheme
+import kotlinx.coroutines.launch
 import org.osmdroid.config.Configuration
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         
-        // OSMdroid configuration
         Configuration.getInstance().load(this, getSharedPreferences("osmdroid", MODE_PRIVATE))
         
         enableEdgeToEdge()
@@ -50,9 +49,17 @@ class MainActivity : ComponentActivity() {
 @Composable
 fun MainContainer() {
     val context = LocalContext.current
-    var selectedTab by remember { mutableIntStateOf(0) }
     val viewModel: SiferViewModel = viewModel()
     var showDndDialog by remember { mutableStateOf(false) }
+    
+    val pagerState = rememberPagerState(pageCount = { 3 })
+    val coroutineScope = rememberCoroutineScope()
+
+    // Optimization: Use derivedStateOf for the bottom nav index to avoid 
+    // recomposing the entire Scaffold on every pixel of scroll animation.
+    val selectedNavItem by remember {
+        derivedStateOf { pagerState.currentPage }
+    }
 
     // Permission handling
     val locationPermissions = arrayOf(
@@ -77,7 +84,6 @@ fun MainContainer() {
             launcher.launch(locationPermissions)
         }
         
-        // Check DND permission status
         val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && !notificationManager.isNotificationPolicyAccessGranted) {
             showDndDialog = true
@@ -89,7 +95,7 @@ fun MainContainer() {
             onDismissRequest = { showDndDialog = false },
             title = { Text("DND Access Required") },
             text = { 
-                Text("Sifer needs Do Not Disturb access to automatically silence your phone when you enter a Haven. Please grant this permission in the next screen.") 
+                Text("Sifer needs Do Not Disturb access to automatically silence your phone when you enter a Haven.") 
             },
             confirmButton = {
                 Button(
@@ -101,51 +107,41 @@ fun MainContainer() {
                 ) {
                     Text("Continue")
                 }
-            },
-            dismissButton = {
-                TextButton(onClick = { showDndDialog = false }) {
-                    Text("Not Now")
-                }
             }
         )
     }
 
     Scaffold(
+        topBar = { SiferTopBar() },
         bottomBar = {
-            NavigationBar {
-                NavigationBarItem(
-                    selected = selectedTab == 0,
-                    onClick = { selectedTab = 0 },
-                    icon = { Icon(Icons.Default.Home, contentDescription = "Home") },
-                    label = { Text("Home") }
-                )
-                NavigationBarItem(
-                    selected = selectedTab == 1,
-                    onClick = { selectedTab = 1 },
-                    icon = { Icon(Icons.Default.List, contentDescription = "Zones") },
-                    label = { Text("Zones") }
-                )
-                NavigationBarItem(
-                    selected = selectedTab == 2,
-                    onClick = { selectedTab = 2 },
-                    icon = { Icon(Icons.Default.Add, contentDescription = "Add") },
-                    label = { Text("Add") }
-                )
-                NavigationBarItem(
-                    selected = selectedTab == 3,
-                    onClick = { selectedTab = 3 },
-                    icon = { Icon(Icons.Default.Settings, contentDescription = "Settings") },
-                    label = { Text("Settings") }
-                )
-            }
+            SiferBottomNav(
+                selectedItem = selectedNavItem,
+                onItemSelected = { index ->
+                    coroutineScope.launch {
+                        pagerState.animateScrollToPage(index)
+                    }
+                }
+            )
         }
     ) { padding ->
-        Box(modifier = Modifier.padding(padding)) {
-            when (selectedTab) {
-                0 -> HomeScreen(viewModel)
-                1 -> ZonesScreen(viewModel)
-                2 -> AddHavenScreen(viewModel) { selectedTab = 1 }
-                3 -> SettingsScreen()
+        HorizontalPager(
+            state = pagerState,
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(padding),
+            // Pre-load all 3 pages (beyond 1 on each side) to prevent composition lag during switching.
+            beyondViewportPageCount = 2,
+            key = { it }
+        ) { page ->
+            // Wrap in Box with graphicsLayer to isolate each page's rendering and hint for hardware acceleration.
+            Box(Modifier.graphicsLayer { clip = true }) {
+                when (page) {
+                    0 -> HomeScreen(viewModel)
+                    1 -> AddHavenScreen(viewModel) { 
+                        coroutineScope.launch { pagerState.animateScrollToPage(0) }
+                    }
+                    2 -> SettingsScreen()
+                }
             }
         }
     }

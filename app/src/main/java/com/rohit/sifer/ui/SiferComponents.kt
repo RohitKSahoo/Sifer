@@ -6,8 +6,13 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.outlined.AddLocationAlt
+import androidx.compose.material.icons.outlined.Home
+import androidx.compose.material.icons.outlined.Layers
+import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -25,18 +30,19 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.rohit.sifer.ui.theme.*
 
 object SiferColors {
-    val Green = Color(0xFF46D19B)
-    val Black = Color(0xFF000000)
-    val White = Color(0xFFFFFFFF)
-    val LightGrey = Color(0xFFF2F2F2)
-    val MediumGrey = Color(0xFFE0E0E0)
-    val TextSecondary = Color(0xFF666666)
-    val BlueBadge = Color(0xFFB5CCFF)
-    val Yellow = Color(0xFFFDCB01)
-    val LightBlue = Color(0xFFD0E0FF)
-    val Red = Color(0xFFFF5252)
+    val Green = SiferGreen
+    val Black = SiferBlack
+    val White = SiferWhite
+    val Yellow = SiferYellow
+    val Grey = SiferGrey
+    val MediumGrey = SiferMediumGrey
+    val TextSecondary = SiferTextSecondary
+    val BlueBadge = SiferBlueBadge
+    val LightBlue = SiferLightBlue
+    val Red = SiferRed
     
     val MeshGradient = Brush.verticalGradient(
         colors = listOf(
@@ -133,7 +139,7 @@ fun SiferButton(
                 text = text.uppercase(),
                 color = textColor,
                 fontWeight = FontWeight.Black,
-                fontSize = 12.sp
+                fontSize = 14.sp
             )
             if (icon != null) {
                 Spacer(modifier = Modifier.width(8.dp))
@@ -141,7 +147,7 @@ fun SiferButton(
                     imageVector = icon,
                     contentDescription = null,
                     tint = textColor,
-                    modifier = Modifier.size(16.dp)
+                    modifier = Modifier.size(18.dp)
                 )
             }
         }
@@ -154,21 +160,30 @@ fun SiferTopBar() {
         modifier = Modifier
             .fillMaxWidth()
             .background(SiferColors.White)
-            .padding(horizontal = 16.dp, vertical = 12.dp),
+            .statusBarsPadding()
+            .padding(horizontal = 16.dp, vertical = 12.dp)
+            .drawBehind {
+                drawLine(
+                    color = Color.Black,
+                    start = Offset(0f, size.height),
+                    end = Offset(size.width, size.height),
+                    strokeWidth = 2.dp.toPx()
+                )
+            },
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Icon(Icons.Default.Menu, contentDescription = null, modifier = Modifier.size(24.dp))
+        Icon(Icons.Default.Menu, contentDescription = null, modifier = Modifier.size(28.dp))
         Text(
             text = "SIFER",
             fontWeight = FontWeight.Black,
             fontStyle = FontStyle.Italic,
-            fontSize = 20.sp,
+            fontSize = 24.sp,
             letterSpacing = 1.sp
         )
         Box(
             modifier = Modifier
-                .size(32.dp)
+                .size(36.dp)
                 .clip(CircleShape)
                 .border(2.dp, SiferColors.Black, CircleShape)
         ) {
@@ -183,16 +198,16 @@ fun SiferBottomNav(
     onItemSelected: (Int) -> Unit
 ) {
     val items = listOf(
-        NavItem("Home", Icons.Default.Home),
-        NavItem("Campus", Icons.Default.Place),
-        NavItem("Study", Icons.Default.Book),
-        NavItem("Sifer", Icons.Default.Fingerprint)
+        NavItem("Home", Icons.Outlined.Home),
+        NavItem("Add", Icons.Outlined.AddLocationAlt),
+        NavItem("Settings", Icons.Outlined.Settings)
     )
 
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .background(SiferColors.White)
+            .navigationBarsPadding()
             .drawBehind {
                 drawLine(
                     color = Color.Black,
@@ -201,35 +216,39 @@ fun SiferBottomNav(
                     strokeWidth = 2.dp.toPx()
                 )
             }
-            .padding(bottom = 16.dp),
+            .padding(bottom = 8.dp),
         horizontalArrangement = Arrangement.SpaceAround
     ) {
         items.forEachIndexed { index, item ->
             val isSelected = index == selectedItem
             Column(
                 modifier = Modifier
+                    .weight(1f)
                     .clickable { onItemSelected(index) }
-                    .padding(8.dp)
-                    .then(
-                        if (isSelected) Modifier
-                            .background(SiferColors.Green)
-                            .border(2.dp, SiferColors.Black)
-                            .padding(horizontal = 12.dp, vertical = 4.dp)
-                        else Modifier.padding(horizontal = 12.dp, vertical = 4.dp)
-                    ),
+                    .padding(vertical = 12.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 Icon(
                     imageVector = item.icon,
                     contentDescription = null,
-                    modifier = Modifier.size(24.dp),
-                    tint = SiferColors.Black
+                    tint = if (isSelected) SiferColors.Black else SiferColors.TextSecondary,
+                    modifier = Modifier.size(24.dp)
                 )
+                Spacer(modifier = Modifier.height(4.dp))
                 Text(
                     text = item.label.uppercase(),
                     fontSize = 10.sp,
-                    fontWeight = FontWeight.Black
+                    fontWeight = FontWeight.Black,
+                    color = if (isSelected) SiferColors.Black else SiferColors.TextSecondary
                 )
+                if (isSelected) {
+                    Box(
+                        modifier = Modifier
+                            .width(20.dp)
+                            .height(3.dp)
+                            .background(SiferColors.Yellow)
+                    )
+                }
             }
         }
     }
@@ -245,7 +264,7 @@ fun SiferSwitch(
 ) {
     Box(
         modifier = modifier
-            .size(44.dp, 22.dp)
+            .size(48.dp, 24.dp)
             .background(if (checked) SiferColors.Green else SiferColors.White)
             .border(2.dp, SiferColors.Black)
             .clickable { onCheckedChange(!checked) }
@@ -253,7 +272,7 @@ fun SiferSwitch(
     ) {
         Box(
             modifier = Modifier
-                .size(14.dp)
+                .size(16.dp)
                 .align(if (checked) Alignment.CenterEnd else Alignment.CenterStart)
                 .background(SiferColors.Black)
         )
@@ -293,12 +312,12 @@ fun SiferSectionHeader(title: String, rightText: String? = null) {
             Text(
                 text = title.uppercase(),
                 fontWeight = FontWeight.Black,
-                fontSize = 16.sp
+                fontSize = 18.sp
             )
             Box(
                 modifier = Modifier
-                    .width(40.dp)
-                    .height(3.dp)
+                    .width(60.dp)
+                    .height(4.dp)
                     .background(SiferColors.Green)
             )
         }

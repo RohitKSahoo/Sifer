@@ -1,12 +1,12 @@
 package com.rohit.sifer.ui
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.PowerSettingsNew
-import androidx.compose.material.icons.filled.Shield
-import androidx.compose.material.icons.filled.ShieldMoon
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -14,107 +14,190 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.rohit.sifer.data.Zone
 
 @Composable
 fun HomeScreen(viewModel: SiferViewModel) {
-    val zones by viewModel.allZones.collectAsState(initial = emptyList())
     val isServiceEnabled by viewModel.isServiceEnabled
-    
-    val activeZones = if (isServiceEnabled) zones.filter { it.isEnabled } else emptyList()
+    val isAutoSilenceEnabled by viewModel.isAutoSilenceEnabled
+    val isWifiShieldEnabled by viewModel.isWifiShieldEnabled
+    val zones by viewModel.allZones.collectAsState(initial = emptyList())
+    val history = viewModel.activityHistory
 
-    Column(
+    Box(
         modifier = Modifier
             .fillMaxSize()
-            .padding(16.dp)
+            .background(SiferColors.MeshGradient)
     ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text(
-                text = "Sifer",
-                style = MaterialTheme.typography.headlineMedium,
-                fontWeight = FontWeight.Bold
-            )
-            
-            // Universal Start/Stop Button
-            Button(
-                onClick = { viewModel.toggleService(!isServiceEnabled) },
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = if (isServiceEnabled) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary
-                )
-            ) {
-                Icon(
-                    imageVector = Icons.Default.PowerSettingsNew,
-                    contentDescription = null,
-                    modifier = Modifier.size(18.dp)
-                )
-                Spacer(modifier = Modifier.width(8.dp))
-                Text(if (isServiceEnabled) "STOP SIFER" else "START SIFER")
-            }
-        }
-        
-        Card(
+        LazyColumn(
             modifier = Modifier
-                .fillMaxWidth()
-                .padding(vertical = 16.dp),
-            colors = CardDefaults.cardColors(
-                containerColor = if (isServiceEnabled) 
-                    MaterialTheme.colorScheme.primaryContainer 
-                else 
-                    MaterialTheme.colorScheme.surfaceVariant
-            )
+                .fillMaxSize()
+                .padding(horizontal = 16.dp),
+            contentPadding = PaddingValues(bottom = 32.dp)
         ) {
-            Row(
-                modifier = Modifier
-                    .padding(16.dp)
-                    .fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = if (isServiceEnabled) "Service Active" else "Service Paused",
-                        style = MaterialTheme.typography.titleLarge,
-                        fontWeight = FontWeight.Bold
-                    )
+            item { Spacer(modifier = Modifier.height(16.dp)) }
+
+            // Master Status Card
+            item(key = "status_card") {
+                NeoBrutalCard(
+                    backgroundColor = if (isServiceEnabled) SiferColors.Green else SiferColors.White
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            SiferBadge(
+                                text = if (isServiceEnabled) "PROTECTION LIVE" else "PROTECTION OFF",
+                                backgroundColor = if (isServiceEnabled) SiferColors.Black else SiferColors.Red,
+                                textColor = SiferColors.White,
+                                dotColor = if (isServiceEnabled) SiferColors.Green else null
+                            )
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Text(
+                                text = if (isServiceEnabled) "Sifer Active" else "Sifer Paused",
+                                fontSize = 32.sp,
+                                fontWeight = FontWeight.Black,
+                                lineHeight = 34.sp
+                            )
+                        }
+                        Icon(
+                            imageVector = if (isServiceEnabled) Icons.Default.Security else Icons.Default.Shield,
+                            contentDescription = null,
+                            modifier = Modifier.size(56.dp),
+                            tint = SiferColors.Black
+                        )
+                    }
+                    
+                    Spacer(modifier = Modifier.height(16.dp))
+                    
                     Text(
                         text = if (isServiceEnabled) 
-                            "${activeZones.size} zones being monitored" 
-                        else 
-                            "Automations are currently disabled",
-                        style = MaterialTheme.typography.bodyMedium
+                            "Your digital environment is shielded. Sifer will automatically handle your device state in Havens." 
+                            else "Automatic protection is disabled. Your device will not auto-silence in Havens.",
+                        fontSize = 12.sp,
+                        color = SiferColors.Black,
+                        lineHeight = 18.sp,
+                        fontWeight = FontWeight.Medium
+                    )
+                    
+                    Spacer(modifier = Modifier.height(20.dp))
+                    
+                    SiferButton(
+                        text = if (isServiceEnabled) "PAUSE PROTECTION" else "RESUME PROTECTION",
+                        backgroundColor = SiferColors.Black,
+                        textColor = SiferColors.White,
+                        onClick = { viewModel.toggleService(!isServiceEnabled) },
+                        modifier = Modifier.fillMaxWidth()
                     )
                 }
-                Icon(
-                    imageVector = if (isServiceEnabled) Icons.Default.Shield else Icons.Default.ShieldMoon,
-                    contentDescription = null,
-                    modifier = Modifier.size(48.dp),
-                    tint = if (isServiceEnabled) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline
-                )
             }
-        }
 
-        Text(
-            text = "Your Havens",
-            style = MaterialTheme.typography.titleMedium,
-            modifier = Modifier.padding(bottom = 8.dp)
-        )
+            item { Spacer(modifier = Modifier.height(24.dp)) }
 
-        if (zones.isEmpty()) {
-            Box(modifier = Modifier.fillMaxWidth().padding(32.dp), contentAlignment = Alignment.Center) {
-                Text("No Havens added. Go to 'Add' to start.", style = MaterialTheme.typography.bodyMedium)
+            // Automation Rules Section
+            item(key = "automation_header") {
+                SiferSectionHeader(title = "Automation Rules")
             }
-        } else {
-            LazyColumn {
-                items(zones) { zone ->
-                    ZoneStatusItem(
-                        zone = zone, 
-                        isEnabled = isServiceEnabled,
-                        onToggle = { viewModel.toggleZone(zone) }
+
+            item(key = "automation_rules") {
+                Row(modifier = Modifier.fillMaxWidth()) {
+                    // Rule 1
+                    Box(modifier = Modifier.weight(1f)) {
+                        NeoBrutalCard(padding = 12.dp, shadowOffset = 4.dp) {
+                            Icon(Icons.Default.VolumeOff, contentDescription = null, modifier = Modifier.size(20.dp))
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Text(text = "Auto-Silence", fontWeight = FontWeight.Black, fontSize = 14.sp)
+                            Spacer(modifier = Modifier.height(8.dp))
+                            SiferSwitch(checked = isAutoSilenceEnabled, onCheckedChange = { viewModel.toggleAutoSilence(it) })
+                        }
+                    }
+                    Spacer(modifier = Modifier.width(12.dp))
+                    // Rule 2
+                    Box(modifier = Modifier.weight(1f)) {
+                        NeoBrutalCard(padding = 12.dp, shadowOffset = 4.dp, backgroundColor = SiferColors.Grey) {
+                            Icon(Icons.Default.Wifi, contentDescription = null, modifier = Modifier.size(20.dp))
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Text(text = "WiFi Shield", fontWeight = FontWeight.Black, fontSize = 14.sp)
+                            Spacer(modifier = Modifier.height(8.dp))
+                            SiferSwitch(checked = isWifiShieldEnabled, onCheckedChange = { viewModel.toggleWifiShield(it) })
+                        }
+                    }
+                }
+            }
+
+            item { Spacer(modifier = Modifier.height(24.dp)) }
+
+            // Managed Havens Section
+            item(key = "havens_header") {
+                SiferSectionHeader(title = "Active Havens", rightText = "${zones.size} SAVED")
+            }
+
+            if (zones.isEmpty()) {
+                item(key = "no_havens") {
+                    DashedCard {
+                        Text(
+                            "NO HAVENS CONFIGURED",
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Black,
+                            color = SiferColors.TextSecondary
+                        )
+                    }
+                }
+            } else {
+                items(zones, key = { it.id }) { zone ->
+                    HomeZoneItem(
+                        zone = zone,
+                        isGlobalActive = isServiceEnabled,
+                        onToggle = { viewModel.toggleZone(zone) },
+                        onDelete = { viewModel.deleteZone(zone) }
                     )
+                    Spacer(modifier = Modifier.height(12.dp))
+                }
+            }
+
+            item { Spacer(modifier = Modifier.height(24.dp)) }
+
+            // Last Activity Section
+            item(key = "activity_header") {
+                SiferSectionHeader(title = "Recent Activity")
+            }
+
+            if (history.isEmpty()) {
+                item(key = "no_activity") {
+                    NeoBrutalCard(backgroundColor = SiferColors.White.copy(alpha = 0.5f)) {
+                        Text(
+                            "No recent activity recorded.",
+                            fontSize = 12.sp,
+                            color = SiferColors.TextSecondary,
+                            textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                    }
+                }
+            } else {
+                items(history, key = { it.timestamp + it.title }) { log ->
+                    NeoBrutalCard(padding = 12.dp) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Box(
+                                modifier = Modifier
+                                    .size(40.dp)
+                                    .background(SiferColors.Yellow)
+                                    .border(2.dp, SiferColors.Black),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(Icons.Default.History, contentDescription = null, modifier = Modifier.size(24.dp))
+                            }
+                            Spacer(modifier = Modifier.width(12.dp))
+                            Column {
+                                Text(log.title, fontWeight = FontWeight.Black, fontSize = 14.sp)
+                                Text("${log.subtitle} • ${log.timestamp}", fontSize = 11.sp, color = SiferColors.TextSecondary)
+                            }
+                        }
+                    }
+                    Spacer(modifier = Modifier.height(8.dp))
                 }
             }
         }
@@ -122,26 +205,48 @@ fun HomeScreen(viewModel: SiferViewModel) {
 }
 
 @Composable
-fun ZoneStatusItem(zone: Zone, isEnabled: Boolean, onToggle: () -> Unit) {
-    ListItem(
-        headlineContent = { 
-            Text(
-                text = zone.name,
-                color = if (isEnabled) Color.Unspecified else MaterialTheme.colorScheme.outline
-            ) 
-        },
-        supportingContent = { 
-            Text(
-                text = "${zone.radius}m radius",
-                color = if (isEnabled) Color.Unspecified else MaterialTheme.colorScheme.outline
-            ) 
-        },
-        trailingContent = {
-            Switch(
-                checked = zone.isEnabled,
-                onCheckedChange = { onToggle() },
-                enabled = isEnabled
-            )
+fun HomeZoneItem(
+    zone: Zone,
+    isGlobalActive: Boolean,
+    onToggle: () -> Unit,
+    onDelete: () -> Unit
+) {
+    val isActive = zone.isEnabled && isGlobalActive
+    
+    NeoBrutalCard(
+        backgroundColor = if (isActive) SiferColors.White else SiferColors.Grey,
+        padding = 12.dp,
+        shadowOffset = 4.dp
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = zone.name.uppercase(),
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.Black,
+                    color = if (isActive) SiferColors.Black else SiferColors.MediumGrey
+                )
+                Text(
+                    text = "${zone.radius.toInt()}M RADIUS",
+                    fontSize = 9.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = SiferColors.TextSecondary
+                )
+            }
+
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                IconButton(onClick = onDelete) {
+                    Icon(Icons.Default.Delete, contentDescription = "Delete", tint = SiferColors.Red, modifier = Modifier.size(18.dp))
+                }
+                SiferSwitch(
+                    checked = zone.isEnabled,
+                    onCheckedChange = { onToggle() }
+                )
+            }
         }
-    )
+    }
 }

@@ -2,6 +2,7 @@ package com.rohit.sifer.ui
 
 import android.app.Application
 import android.content.Context
+import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
@@ -13,6 +14,8 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
+data class ActivityLog(val title: String, val subtitle: String, val timestamp: String = "Just now")
+
 class SiferViewModel(application: Application) : AndroidViewModel(application) {
 
     private val zoneDao = AppDatabase.getDatabase(application).zoneDao()
@@ -22,6 +25,13 @@ class SiferViewModel(application: Application) : AndroidViewModel(application) {
 
     val allZones: Flow<List<Zone>> = zoneDao.getAllZones()
     val isServiceEnabled = mutableStateOf(prefs.getBoolean("service_enabled", true))
+    
+    // Automation Rule States
+    val isAutoSilenceEnabled = mutableStateOf(prefs.getBoolean("auto_silence_enabled", true))
+    val isWifiShieldEnabled = mutableStateOf(prefs.getBoolean("wifi_shield_enabled", false))
+
+    // Activity Logging
+    val activityHistory = mutableStateListOf<ActivityLog>()
 
     fun toggleService(enabled: Boolean) {
         isServiceEnabled.value = enabled
@@ -36,6 +46,16 @@ class SiferViewModel(application: Application) : AndroidViewModel(application) {
                 actionEngine.stopServiceManually()
             }
         }
+    }
+    
+    fun toggleAutoSilence(enabled: Boolean) {
+        isAutoSilenceEnabled.value = enabled
+        prefs.edit().putBoolean("auto_silence_enabled", enabled).apply()
+    }
+    
+    fun toggleWifiShield(enabled: Boolean) {
+        isWifiShieldEnabled.value = enabled
+        prefs.edit().putBoolean("wifi_shield_enabled", enabled).apply()
     }
 
     fun addZone(name: String, latitude: Double, longitude: Double, radius: Float) {
@@ -52,6 +72,8 @@ class SiferViewModel(application: Application) : AndroidViewModel(application) {
             if (isServiceEnabled.value) {
                 geofenceManager.addGeofence(insertedZone)
             }
+            
+            logActivity("Created Haven '$name'", "Protocol initialized at current coordinates.")
         }
     }
 
@@ -59,6 +81,7 @@ class SiferViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch {
             geofenceManager.removeGeofence(zone)
             zoneDao.deleteZone(zone)
+            logActivity("Deleted Haven '${zone.name}'", "Monitoring protocol terminated.")
         }
     }
 
@@ -69,12 +92,18 @@ class SiferViewModel(application: Application) : AndroidViewModel(application) {
             if (isServiceEnabled.value) {
                 if (updatedZone.isEnabled) {
                     geofenceManager.addGeofence(updatedZone)
+                    logActivity("Enabled '${zone.name}'", "Resumed monitoring for this location.")
                 } else {
                     geofenceManager.removeGeofence(updatedZone)
-                    // If disabling an individual zone, inform the engine to handle possible state restoration
                     actionEngine.exitZone(updatedZone.id.toString())
+                    logActivity("Disabled '${zone.name}'", "Paused monitoring for this location.")
                 }
             }
         }
+    }
+
+    private fun logActivity(title: String, subtitle: String) {
+        activityHistory.add(0, ActivityLog(title, subtitle))
+        if (activityHistory.size > 5) activityHistory.removeAt(activityHistory.size - 1)
     }
 }
