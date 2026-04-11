@@ -30,12 +30,33 @@ import com.rohit.sifer.ui.*
 import com.rohit.sifer.ui.theme.SiferTheme
 import kotlinx.coroutines.launch
 import org.osmdroid.config.Configuration
+import java.io.File
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         
-        Configuration.getInstance().load(this, getSharedPreferences("osmdroid", MODE_PRIVATE))
+        // OSMdroid Configuration
+        val osmConfig = Configuration.getInstance()
+        
+        // 1. Load existing config first
+        osmConfig.load(this, getSharedPreferences("osmdroid", MODE_PRIVATE))
+        
+        // 2. Override with forced internal storage paths to bypass Scoped Storage issues
+        val osmDir = File(filesDir, "osmdroid")
+        if (!osmDir.exists()) osmDir.mkdirs()
+        
+        val tileCache = File(osmDir, "tiles")
+        if (!tileCache.exists()) tileCache.mkdirs()
+        
+        osmConfig.osmdroidBasePath = osmDir
+        osmConfig.osmdroidTileCache = tileCache
+        osmConfig.userAgentValue = packageName
+        
+        // Performance Fix: Increase parallel downloading threads
+        osmConfig.tileDownloadThreads = 12
+        // Performance Fix: Increase tile system cache size
+        osmConfig.tileFileSystemCacheMaxBytes = 600L * 1024 * 1024 // 600MB
         
         enableEdgeToEdge()
         setContent {
@@ -55,8 +76,6 @@ fun MainContainer() {
     val pagerState = rememberPagerState(pageCount = { 3 })
     val coroutineScope = rememberCoroutineScope()
 
-    // Optimization: Use derivedStateOf for the bottom nav index to avoid 
-    // recomposing the entire Scaffold on every pixel of scroll animation.
     val selectedNavItem by remember {
         derivedStateOf { pagerState.currentPage }
     }
@@ -129,15 +148,17 @@ fun MainContainer() {
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding),
-            // Pre-load all 3 pages (beyond 1 on each side) to prevent composition lag during switching.
             beyondViewportPageCount = 2,
-            key = { it }
+            key = { it },
+            userScrollEnabled = false // Disabled swiping to prevent interference with Map dragging
         ) { page ->
-            // Wrap in Box with graphicsLayer to isolate each page's rendering and hint for hardware acceleration.
             Box(Modifier.graphicsLayer { clip = true }) {
                 when (page) {
                     0 -> HomeScreen(viewModel)
-                    1 -> AddHavenScreen(viewModel) { 
+                    1 -> AddHavenScreen(
+                        viewModel = viewModel,
+                        isActive = selectedNavItem == 1
+                    ) { 
                         coroutineScope.launch { pagerState.animateScrollToPage(0) }
                     }
                     2 -> SettingsScreen()
