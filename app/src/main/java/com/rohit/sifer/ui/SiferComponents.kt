@@ -15,16 +15,19 @@ import androidx.compose.material.icons.outlined.Layers
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
@@ -55,25 +58,30 @@ object SiferColors {
 
 @Composable
 fun GridBackground(modifier: Modifier = Modifier) {
-    Canvas(modifier = modifier.fillMaxSize()) {
-        val gridSpacing = 20.dp.toPx()
-        val strokeWidth = 0.5.dp.toPx()
-        val color = Color.Black.copy(alpha = 0.05f)
+    // Optimization: Use drawWithCache to prevent redrawing the grid every frame
+    Spacer(
+        modifier = modifier
+            .fillMaxSize()
+            .drawWithCache {
+                onDrawBehind {
+                    val gridSpacing = 20.dp.toPx()
+                    val strokeWidth = 0.5.dp.toPx()
+                    val color = Color.Black.copy(alpha = 0.05f)
 
-        // Draw vertical lines
-        var x = 0f
-        while (x < size.width) {
-            drawLine(color, Offset(x, 0f), Offset(x, size.height), strokeWidth)
-            x += gridSpacing
-        }
+                    var x = 0f
+                    while (x < size.width) {
+                        drawLine(color, Offset(x, 0f), Offset(x, size.height), strokeWidth)
+                        x += gridSpacing
+                    }
 
-        // Draw horizontal lines
-        var y = 0f
-        while (y < size.height) {
-            drawLine(color, Offset(0f, y), Offset(size.width, y), strokeWidth)
-            y += gridSpacing
-        }
-    }
+                    var y = 0f
+                    while (y < size.height) {
+                        drawLine(color, Offset(0f, y), Offset(size.width, y), strokeWidth)
+                        y += gridSpacing
+                    }
+                }
+            }
+    )
 }
 
 @Composable
@@ -87,14 +95,12 @@ fun NeoBrutalCard(
     content: @Composable ColumnScope.() -> Unit
 ) {
     Box(modifier = modifier.padding(bottom = shadowOffset, end = shadowOffset)) {
-        // Shadow
         Box(
             modifier = Modifier
                 .matchParentSize()
                 .offset(x = shadowOffset, y = shadowOffset)
                 .background(borderColor)
         )
-        // Main Card
         Column(
             modifier = Modifier
                 .fillMaxWidth()
@@ -179,12 +185,12 @@ fun SiferButton(
 
 @Composable
 fun SiferTopBar() {
-    Box(
+    Row(
         modifier = Modifier
             .fillMaxWidth()
             .background(SiferColors.White)
             .statusBarsPadding()
-            .padding(horizontal = 16.dp, vertical = 16.dp)
+            .padding(horizontal = 16.dp, vertical = 12.dp)
             .drawBehind {
                 drawLine(
                     color = Color.Black,
@@ -193,16 +199,42 @@ fun SiferTopBar() {
                     strokeWidth = 2.dp.toPx()
                 )
             },
-        contentAlignment = Alignment.Center
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
     ) {
+        Text(
+            text = "[v4.0.2]",
+            color = SiferColors.Black,
+            fontSize = 10.sp,
+            fontWeight = FontWeight.Black,
+            fontFamily = FontFamily.Monospace,
+            modifier = Modifier.width(60.dp)
+        )
+
+        // Feature: Improved Font and Style for branding
         Text(
             text = "SIFER",
             color = SiferColors.Black,
-            fontWeight = FontWeight.Black,
-            fontStyle = FontStyle.Italic,
-            fontSize = 28.sp,
-            letterSpacing = 2.sp
+            fontWeight = FontWeight.ExtraBold,
+            fontStyle = FontStyle.Normal,
+            fontSize = 36.sp, // Slightly larger
+            fontFamily = FontFamily.SansSerif, // Bold clean Sans
+            letterSpacing = 6.sp, // Tactical spacing
+            modifier = Modifier.weight(1f),
+            textAlign = androidx.compose.ui.text.style.TextAlign.Center
         )
+
+        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.width(60.dp), horizontalArrangement = Arrangement.End) {
+            Box(modifier = Modifier.size(6.dp).clip(CircleShape).background(SiferColors.Green))
+            Spacer(modifier = Modifier.width(4.dp))
+            Text(
+                text = "ONLINE",
+                color = SiferColors.Black,
+                fontSize = 8.sp,
+                fontWeight = FontWeight.Black,
+                fontFamily = FontFamily.Monospace
+            )
+        }
     }
 }
 

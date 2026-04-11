@@ -63,7 +63,7 @@ fun HomeScreen(viewModel: SiferViewModel) {
                             )
                             Spacer(modifier = Modifier.height(8.dp))
                             Text(
-                                text = if (isServiceEnabled) "Sifer Active" else "Sifer Paused",
+                                text = if (isServiceEnabled) "Active" else "Paused",
                                 color = SiferColors.Black,
                                 fontSize = 32.sp,
                                 fontWeight = FontWeight.Black,

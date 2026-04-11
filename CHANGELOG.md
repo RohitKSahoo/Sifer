@@ -2,6 +2,25 @@
 
 ## 2026-04-11
 
+### Iteration 14
+#### Fixed
+- **Animation Performance:** Implemented hardware-accelerated transitions for `HorizontalPager` using `graphicsLayer` to eliminate lag during tab switching.
+- **Grid Optimization:** Updated `GridBackground` to use `drawWithCache`, preventing redundant re-draws and improving overall UI responsiveness.
+#### Modified
+- **Branding Polish:** Further refined the "SIFER" logo with 36sp ExtraBold Sans-Serif font and 6sp tactical letter spacing.
+
+### Iteration 13
+#### Modified
+- **Header Typography:** Enhanced the centered "SIFER" branding with increased font size (32sp) and bolder weight. Applied Monospace fonts to versioning and status indicators for a technical aesthetic.
+
+### Iteration 12
+#### Fixed
+- **Notification Bar Visibility:** Forced `SystemBarStyle.light` in `MainActivity` to ensure system icons (clock, battery) are visible against the app's white header.
+#### Modified
+- **Serial Header:** Redesigned the top bar with industrial version tagging `[v4.0.2]` and live `ONLINE` status.
+- **Iconic Navigation:** Transitioned to a label-free navigation bar with oversized (32dp) icons and tactical active indicators.
+- **Settings Footer:** Replaced mockup text with a functional GitHub link (`RohitKSahoo`).
+
 ### Iteration 11
 #### Modified
 - **Header Refinement:** Centered the "SIFER" branding and removed redundant menu and profile icons for a cleaner, focused experience.
