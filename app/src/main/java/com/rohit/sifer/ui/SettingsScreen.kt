@@ -1,5 +1,7 @@
 package com.rohit.sifer.ui
 
+import android.content.Intent
+import android.net.Uri
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -31,9 +33,9 @@ fun SettingsScreen(viewModel: SiferViewModel) {
     val isBatteryOptimized by viewModel.isBatteryOptimized
     val isAutoStartEnabled by viewModel.isAutoStartEnabled
     
+    val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
 
-    // Refresh permissions whenever user returns to the app from settings
     DisposableEffect(lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->
             if (event == Lifecycle.Event.ON_RESUME) {
@@ -44,23 +46,21 @@ fun SettingsScreen(viewModel: SiferViewModel) {
         onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
     }
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(SiferColors.White)
-    ) {
+    Box(modifier = Modifier.fillMaxSize().background(SiferColors.White)) {
+        GridBackground()
+
         LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(horizontal = 16.dp),
-            contentPadding = PaddingValues(bottom = 32.dp)
+            contentPadding = PaddingValues(bottom = 80.dp)
         ) {
             item {
                 Spacer(modifier = Modifier.height(16.dp))
                 SiferBadge(text = "SYSTEM_CONFIG_V4.0", backgroundColor = SiferColors.LightBlue)
                 Spacer(modifier = Modifier.height(8.dp))
                 Text(
-                    text = "SETTINGS &\nPERMISSIONS",
+                    text = "SETTINGS", // Feature 5: Renamed
                     color = SiferColors.Black,
                     fontSize = 32.sp,
                     fontWeight = FontWeight.Black,
@@ -76,7 +76,6 @@ fun SettingsScreen(viewModel: SiferViewModel) {
                 Spacer(modifier = Modifier.height(24.dp))
             }
 
-            // Core Permissions Section
             item {
                 PermissionSectionHeader(number = "01", title = "CORE PERMISSIONS")
             }
@@ -109,7 +108,6 @@ fun SettingsScreen(viewModel: SiferViewModel) {
 
             item { Spacer(modifier = Modifier.height(24.dp)) }
 
-            // General Section
             item {
                 PermissionSectionHeader(number = "02", title = "GENERAL")
             }
@@ -122,8 +120,8 @@ fun SettingsScreen(viewModel: SiferViewModel) {
                         "System is restricting background sync. Performance may be degraded." 
                         else "Unrestricted background performance active.",
                     gradient = if (isBatteryOptimized) 
-                        Brush.verticalGradient(listOf(Color(0xFFFFEBEE), Color(0xFFFFCDD2))) // Reddish
-                        else Brush.verticalGradient(listOf(Color(0xFF80CBC4), Color(0xFFDCEDC8))), // Greenish
+                        Brush.verticalGradient(listOf(Color(0xFFFFEBEE), Color(0xFFFFCDD2)))
+                        else Brush.verticalGradient(listOf(Color(0xFF80CBC4), Color(0xFFDCEDC8))),
                     checked = !isBatteryOptimized,
                     onClick = { if (isBatteryOptimized) viewModel.openBatterySettings() }
                 )
@@ -144,18 +142,32 @@ fun SettingsScreen(viewModel: SiferViewModel) {
 
             item { Spacer(modifier = Modifier.height(32.dp)) }
 
+            // Feature 5: GitHub Link Footer
             item {
-                Box(modifier = Modifier.fillMaxWidth().padding(vertical = 16.dp), contentAlignment = Alignment.Center) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 16.dp)
+                        .clickable {
+                            val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://github.com/RohitKSahoo/Sifer"))
+                            context.startActivity(intent)
+                        },
+                    contentAlignment = Alignment.Center
+                ) {
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
                         Box(modifier = Modifier.fillMaxWidth().height(1.dp).background(SiferColors.MediumGrey))
                         Spacer(modifier = Modifier.height(16.dp))
-                        Text(
-                            text = "VULNERABILITY PATCH: 0XFF92A • SIFER CORP",
-                            fontSize = 10.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = SiferColors.BlueBadge,
-                            letterSpacing = 1.sp
-                        )
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(Icons.Default.Code, contentDescription = null, tint = SiferColors.Black, modifier = Modifier.size(16.dp))
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                text = "RohitKSahoo",
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Black,
+                                color = SiferColors.Black,
+                                letterSpacing = 1.sp
+                            )
+                        }
                     }
                 }
             }

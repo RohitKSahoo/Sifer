@@ -10,6 +10,7 @@ import android.os.Bundle
 import android.provider.Settings
 import android.widget.Toast
 import androidx.activity.ComponentActivity
+import androidx.activity.SystemBarStyle
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -22,6 +23,8 @@ import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
 import androidx.core.content.ContextCompat
@@ -38,11 +41,8 @@ class MainActivity : ComponentActivity() {
         
         // OSMdroid Configuration
         val osmConfig = Configuration.getInstance()
-        
-        // 1. Load existing config first
         osmConfig.load(this, getSharedPreferences("osmdroid", MODE_PRIVATE))
         
-        // 2. Override with forced internal storage paths to bypass Scoped Storage issues
         val osmDir = File(filesDir, "osmdroid")
         if (!osmDir.exists()) osmDir.mkdirs()
         
@@ -52,13 +52,21 @@ class MainActivity : ComponentActivity() {
         osmConfig.osmdroidBasePath = osmDir
         osmConfig.osmdroidTileCache = tileCache
         osmConfig.userAgentValue = packageName
-        
-        // Performance Fix: Increase parallel downloading threads
         osmConfig.tileDownloadThreads = 12
-        // Performance Fix: Increase tile system cache size
-        osmConfig.tileFileSystemCacheMaxBytes = 600L * 1024 * 1024 // 600MB
+        osmConfig.tileFileSystemCacheMaxBytes = 600L * 1024 * 1024
         
-        enableEdgeToEdge()
+        // FIX: Force Light Status Bar (Dark Icons) to ensure visibility on white background
+        enableEdgeToEdge(
+            statusBarStyle = SystemBarStyle.light(
+                android.graphics.Color.TRANSPARENT,
+                android.graphics.Color.TRANSPARENT
+            ),
+            navigationBarStyle = SystemBarStyle.light(
+                android.graphics.Color.TRANSPARENT,
+                android.graphics.Color.TRANSPARENT
+            )
+        )
+
         setContent {
             SiferTheme {
                 MainContainer()

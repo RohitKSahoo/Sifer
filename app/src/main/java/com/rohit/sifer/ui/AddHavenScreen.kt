@@ -23,6 +23,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
@@ -81,21 +82,18 @@ fun AddHavenScreen(viewModel: SiferViewModel, isActive: Boolean, onZoneAdded: ()
         zones.forEach { zone ->
             val center = GeoPoint(zone.latitude, zone.longitude)
             
-            // Add Marker (The "Blip")
             val marker = Marker(mapView).apply {
                 position = center
                 setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM)
                 title = zone.name
                 subDescription = "Radius: ${zone.radius.toInt()}m"
-                // Using standard icon for now, could be customized
                 icon = context.getDrawable(android.R.drawable.ic_menu_mylocation)
                 icon?.setTint(android.graphics.Color.BLACK)
             }
             
-            // Add Circle (The Radius)
             val circle = Polygon(mapView).apply {
                 points = Polygon.pointsAsCircle(center, zone.radius.toDouble())
-                fillPaint.color = android.graphics.Color.argb(50, 0, 255, 127) // Sifer Green with alpha
+                fillPaint.color = android.graphics.Color.argb(50, 0, 255, 127)
                 outlinePaint.color = android.graphics.Color.BLACK
                 outlinePaint.strokeWidth = 2f
             }
@@ -212,25 +210,28 @@ fun AddHavenScreen(viewModel: SiferViewModel, isActive: Boolean, onZoneAdded: ()
         ) {
             NeoBrutalCard(padding = 0.dp, shadowOffset = 4.dp) {
                 Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp)) {
-                    Icon(Icons.Default.Search, contentDescription = null, tint = SiferColors.MediumGrey, modifier = Modifier.size(20.dp))
+                    Icon(Icons.Default.Search, contentDescription = null, tint = SiferColors.Black, modifier = Modifier.size(20.dp))
                     TextField(
                         value = searchQuery,
                         onValueChange = { searchQuery = it },
                         placeholder = { Text("Search location...", color = SiferColors.MediumGrey, fontSize = 14.sp) },
                         modifier = Modifier.weight(1f),
                         singleLine = true,
+                        textStyle = TextStyle(color = SiferColors.Black), // Feature 3: Explicit Black text
                         keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
                         keyboardActions = KeyboardActions(onSearch = { performSearch(searchQuery) }),
                         colors = TextFieldDefaults.colors(
                             focusedContainerColor = Color.Transparent,
                             unfocusedContainerColor = Color.Transparent,
                             focusedIndicatorColor = Color.Transparent,
-                            unfocusedIndicatorColor = Color.Transparent
+                            unfocusedIndicatorColor = Color.Transparent,
+                            focusedTextColor = SiferColors.Black,
+                            unfocusedTextColor = SiferColors.Black
                         )
                     )
                     if (searchQuery.isNotEmpty()) {
                         IconButton(onClick = { searchQuery = "" }) {
-                            Icon(Icons.Default.Close, contentDescription = "Clear", modifier = Modifier.size(18.dp))
+                            Icon(Icons.Default.Close, contentDescription = "Clear", tint = SiferColors.Black, modifier = Modifier.size(18.dp))
                         }
                     } else {
                         IconButton(onClick = { performSearch(searchQuery) }) {
@@ -270,7 +271,7 @@ fun AddHavenScreen(viewModel: SiferViewModel, isActive: Boolean, onZoneAdded: ()
                 modifier = Modifier.size(40.dp).border(2.dp, SiferColors.Black, RoundedCornerShape(4.dp)),
                 elevation = FloatingActionButtonDefaults.elevation(0.dp, 0.dp)
             ) {
-                Icon(Icons.Default.MyLocation, contentDescription = "My Location", modifier = Modifier.size(20.dp))
+                Icon(Icons.Default.MyLocation, contentDescription = "My Location", tint = SiferColors.Black, modifier = Modifier.size(20.dp))
             }
         }
 
@@ -285,7 +286,7 @@ fun AddHavenScreen(viewModel: SiferViewModel, isActive: Boolean, onZoneAdded: ()
             NeoBrutalCard(padding = 12.dp, shadowOffset = 6.dp) {
                 Column {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(Icons.AutoMirrored.Filled.Label, contentDescription = null, modifier = Modifier.size(16.dp), tint = SiferColors.MediumGrey)
+                        Icon(Icons.AutoMirrored.Filled.Label, contentDescription = null, modifier = Modifier.size(16.dp), tint = SiferColors.Black)
                         Spacer(modifier = Modifier.width(8.dp))
                         TextField(
                             value = zoneName,
@@ -293,11 +294,14 @@ fun AddHavenScreen(viewModel: SiferViewModel, isActive: Boolean, onZoneAdded: ()
                             placeholder = { Text("Haven Name (e.g. Home)", color = SiferColors.MediumGrey, fontSize = 14.sp) },
                             modifier = Modifier.fillMaxWidth(),
                             singleLine = true,
+                            textStyle = TextStyle(color = SiferColors.Black, fontSize = 14.sp), // Feature 3: Explicit Black text
                             colors = TextFieldDefaults.colors(
                                 focusedContainerColor = Color.Transparent,
                                 unfocusedContainerColor = Color.Transparent,
                                 focusedIndicatorColor = SiferColors.Black,
-                                unfocusedIndicatorColor = SiferColors.Grey
+                                unfocusedIndicatorColor = SiferColors.Grey,
+                                focusedTextColor = SiferColors.Black,
+                                unfocusedTextColor = SiferColors.Black
                             )
                         )
                     }
@@ -305,7 +309,7 @@ fun AddHavenScreen(viewModel: SiferViewModel, isActive: Boolean, onZoneAdded: ()
                     Spacer(modifier = Modifier.height(12.dp))
                     
                     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                        Text("RADIUS", fontSize = 10.sp, fontWeight = FontWeight.Black, color = SiferColors.TextSecondary)
+                        Text("RADIUS", color = SiferColors.Black, fontSize = 10.sp, fontWeight = FontWeight.Black)
                         Text("${radius.toInt()}m", fontSize = 14.sp, fontWeight = FontWeight.Black, color = SiferColors.Green)
                     }
                     Slider(

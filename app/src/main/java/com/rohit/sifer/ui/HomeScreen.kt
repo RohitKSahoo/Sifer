@@ -31,8 +31,11 @@ fun HomeScreen(viewModel: SiferViewModel) {
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(SiferColors.MeshGradient)
+            .background(SiferColors.White)
     ) {
+        // Feature 2: Paper Grid Background
+        GridBackground()
+
         LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
@@ -106,38 +109,33 @@ fun HomeScreen(viewModel: SiferViewModel) {
                 SiferSectionHeader(title = "Automation Rules")
             }
 
+            // Feature 1: Rules in a single row, smaller size
             item(key = "automation_rules") {
-                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    Row(modifier = Modifier.fillMaxWidth()) {
-                        // Rule 1: DND (Quick Tile Style)
-                        AutomationTile(
-                            title = "DND",
-                            icon = Icons.Default.DoNotDisturbOn,
-                            checked = isDndEnabled,
-                            onClick = { viewModel.toggleDndRule(!isDndEnabled) },
-                            modifier = Modifier.weight(1f)
-                        )
-                        Spacer(modifier = Modifier.width(12.dp))
-                        // Rule 2: Vibrate
-                        AutomationTile(
-                            title = "Vibrate",
-                            icon = Icons.Default.Vibration,
-                            checked = isVibrateEnabled,
-                            onClick = { viewModel.toggleVibrateRule(!isVibrateEnabled) },
-                            modifier = Modifier.weight(1f)
-                        )
-                    }
-                    Row(modifier = Modifier.fillMaxWidth()) {
-                        // Rule 3: Media Mute
-                        AutomationTile(
-                            title = "Media 0",
-                            icon = Icons.Default.MusicOff,
-                            checked = isMediaMuteEnabled,
-                            onClick = { viewModel.toggleMediaMuteRule(!isMediaMuteEnabled) },
-                            modifier = Modifier.weight(1f)
-                        )
-                        Spacer(modifier = Modifier.weight(1f))
-                    }
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    AutomationTile(
+                        title = "DND",
+                        icon = Icons.Default.DoNotDisturbOn,
+                        checked = isDndEnabled,
+                        onClick = { viewModel.toggleDndRule(!isDndEnabled) },
+                        modifier = Modifier.weight(1f)
+                    )
+                    AutomationTile(
+                        title = "Vibrate",
+                        icon = Icons.Default.Vibration,
+                        checked = isVibrateEnabled,
+                        onClick = { viewModel.toggleVibrateRule(!isVibrateEnabled) },
+                        modifier = Modifier.weight(1f)
+                    )
+                    AutomationTile(
+                        title = "Media",
+                        icon = Icons.Default.MusicOff,
+                        checked = isMediaMuteEnabled,
+                        onClick = { viewModel.toggleMediaMuteRule(!isMediaMuteEnabled) },
+                        modifier = Modifier.weight(1f)
+                    )
                 }
             }
 
@@ -226,15 +224,15 @@ fun AutomationTile(
     modifier: Modifier = Modifier
 ) {
     NeoBrutalCard(
-        padding = 12.dp, 
+        padding = 8.dp, // Reduced padding for smaller size
         shadowOffset = 4.dp, 
         modifier = modifier.clickable { onClick() },
         backgroundColor = if (checked) SiferColors.Green else SiferColors.White
     ) {
         Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) {
-            Icon(icon, contentDescription = null, modifier = Modifier.size(24.dp), tint = SiferColors.Black)
-            Spacer(modifier = Modifier.height(8.dp))
-            Text(text = title, color = SiferColors.Black, fontWeight = FontWeight.Black, fontSize = 14.sp)
+            Icon(icon, contentDescription = null, modifier = Modifier.size(20.dp), tint = SiferColors.Black)
+            Spacer(modifier = Modifier.height(4.dp))
+            Text(text = title, color = SiferColors.Black, fontWeight = FontWeight.Black, fontSize = 11.sp) // Smaller font
         }
     }
 }

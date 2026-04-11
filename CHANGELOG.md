@@ -2,43 +2,59 @@
 
 ## 2026-04-11
 
+### Iteration 11
+#### Modified
+- **Header Refinement:** Centered the "SIFER" branding and removed redundant menu and profile icons for a cleaner, focused experience.
+- **Settings Footer:** Replaced technical mockup text with a functional GitHub link to the developer's profile (RohitKSahoo).
+- **Navigation UI:** Fully transitioned to icon-only navigation with increased touch targets.
+#### Fixed
+- **Input Contrast:** Guaranteed black text visibility in the "Haven Name" and "Search" fields on the map page.
+
+### Iteration 10
+#### Added
+- **Paper Grid UI:** Implemented a persistent square grid background across all pages.
+#### Fixed
+- **Navigation UI:** Removed footer labels and increased icon sizes.
+#### Modified
+- **Rule Layout:** Compressed automation tiles into a single row.
+
+### Iteration 9
+#### Modified
+- **Quick Tile UI:** Replaced switches with interactive tile cards that highlight in green when active.
+- **Native Silent Mode:** Updated DND to use `RINGER_MODE_SILENT`.
+
 ### Iteration 8
 #### Modified
-- **Rule Simplification:** Removed the redundant "Silence" toggle and consolidated its behavior into the "DND" toggle.
-- **Ghost Silence Implementation:** The DND toggle now uses volume-based silencing (setting Ring/Notification to 0 while keeping phone in Normal mode) to prevent system-level Vibrate/DND conflicts.
-- **Forced Protocol Restoration:** Disabling any automation rule now forces the device into Ring Mode with 50% Ringer and Media volume for a guaranteed consistent state.
-- **Mutual Exclusion:** Programmed the UI to prevent DND and Vibrate from being active at the same time.
+- **Rule Consolidation:** Consolidated Silence into DND using volume-based silencing.
+- **Forced Restoration:** Disabling rules now forces Ring Mode + 50% volume.
 
 ### Iteration 7
 #### Fixed
-- **Volume-Based Silence:** Switched from system ringer modes to granular stream volume control to avoid automatic DND triggering.
-- **System State Recovery:** Implemented a forced restoration to Ring mode when rules are deactivated.
+- **Volume-Based Silence:** Switched to granular stream control.
 
 ### Iteration 6
 #### Fixed
-- **Atomic State Management:** Ensured original phone state is captured only once upon entry.
-- **Correct DND Filter:** Switched to PRIORITY filter for standard behavior.
+- **Atomic State Management:** Prevented original state overwrites.
+- **Correct DND Filter:** Switched to PRIORITY filter.
 
 ### Iteration 5
 #### Fixed
-- **Rule Independence:** Decoupled Silence from DND.
-- **Real-Time State Restoration:** Fixed issue where toggling a rule OFF didn't restore previous state.
-- **Notification Panel:** Improved visibility and priority.
+- **Rule Independence:** Decoupled Silence and DND.
+- **Real-Time Restore:** Instant restoration of system state.
 
 ### Iteration 4
 #### Added
 - **Status Notification:** Persistent protection notification.
-- **Modular Rules:** DND, Vibrate, Silence, and Media 0 controls.
 
 ### Iteration 3
 #### Fixed
-- **Settings Functionality:** Live system setting links.
 - **Dark Mode Fix:** Forced black text for high-contrast legibility.
 
 ### Iteration 2
 #### Fixed
-- **Map UX/Performance:** Disabled horizontal swipe, increased thread count, and implemented instant snapping.
+- **Map Interaction:** Disabled horizontal swipe.
+- **Map Performance:** Increased thread count.
 
 ### Iteration 1
 #### Fixed
-- **Map Foundation:** Single-Host AndroidView model fix for blank map tiles.
+- **Map Foundation:** Single-Host AndroidView model fix.

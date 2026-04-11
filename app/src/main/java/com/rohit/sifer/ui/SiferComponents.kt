@@ -39,7 +39,7 @@ object SiferColors {
     val Yellow = SiferYellow
     val Grey = SiferGrey
     val MediumGrey = SiferMediumGrey
-    val TextSecondary = Color(0xFF4A4A4A) // Darker for better visibility
+    val TextSecondary = Color(0xFF4A4A4A) 
     val BlueBadge = SiferBlueBadge
     val LightBlue = SiferLightBlue
     val Red = SiferRed
@@ -51,6 +51,29 @@ object SiferColors {
             Color(0xFFFFFDE7)
         )
     )
+}
+
+@Composable
+fun GridBackground(modifier: Modifier = Modifier) {
+    Canvas(modifier = modifier.fillMaxSize()) {
+        val gridSpacing = 20.dp.toPx()
+        val strokeWidth = 0.5.dp.toPx()
+        val color = Color.Black.copy(alpha = 0.05f)
+
+        // Draw vertical lines
+        var x = 0f
+        while (x < size.width) {
+            drawLine(color, Offset(x, 0f), Offset(x, size.height), strokeWidth)
+            x += gridSpacing
+        }
+
+        // Draw horizontal lines
+        var y = 0f
+        while (y < size.height) {
+            drawLine(color, Offset(0f, y), Offset(size.width, y), strokeWidth)
+            y += gridSpacing
+        }
+    }
 }
 
 @Composable
@@ -156,12 +179,12 @@ fun SiferButton(
 
 @Composable
 fun SiferTopBar() {
-    Row(
+    Box(
         modifier = Modifier
             .fillMaxWidth()
             .background(SiferColors.White)
             .statusBarsPadding()
-            .padding(horizontal = 16.dp, vertical = 12.dp)
+            .padding(horizontal = 16.dp, vertical = 16.dp)
             .drawBehind {
                 drawLine(
                     color = Color.Black,
@@ -170,26 +193,16 @@ fun SiferTopBar() {
                     strokeWidth = 2.dp.toPx()
                 )
             },
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically
+        contentAlignment = Alignment.Center
     ) {
-        Icon(Icons.Default.Menu, contentDescription = null, modifier = Modifier.size(28.dp), tint = SiferColors.Black)
         Text(
             text = "SIFER",
             color = SiferColors.Black,
             fontWeight = FontWeight.Black,
             fontStyle = FontStyle.Italic,
-            fontSize = 24.sp,
-            letterSpacing = 1.sp
+            fontSize = 28.sp,
+            letterSpacing = 2.sp
         )
-        Box(
-            modifier = Modifier
-                .size(36.dp)
-                .clip(CircleShape)
-                .border(2.dp, SiferColors.Black, CircleShape)
-        ) {
-            Icon(Icons.Default.Person, contentDescription = null, modifier = Modifier.align(Alignment.Center), tint = SiferColors.Black)
-        }
     }
 }
 
@@ -218,37 +231,34 @@ fun SiferBottomNav(
                 )
             }
             .padding(bottom = 8.dp),
-        horizontalArrangement = Arrangement.SpaceAround
+        horizontalArrangement = Arrangement.SpaceAround,
+        verticalAlignment = Alignment.CenterVertically
     ) {
         items.forEachIndexed { index, item ->
             val isSelected = index == selectedItem
-            Column(
+            Box(
                 modifier = Modifier
                     .weight(1f)
                     .clickable { onItemSelected(index) }
-                    .padding(vertical = 12.dp),
-                horizontalAlignment = Alignment.CenterHorizontally
+                    .padding(vertical = 16.dp),
+                contentAlignment = Alignment.Center
             ) {
-                Icon(
-                    imageVector = item.icon,
-                    contentDescription = null,
-                    tint = if (isSelected) SiferColors.Black else SiferColors.TextSecondary,
-                    modifier = Modifier.size(24.dp)
-                )
-                Spacer(modifier = Modifier.height(4.dp))
-                Text(
-                    text = item.label.uppercase(),
-                    fontSize = 10.sp,
-                    fontWeight = FontWeight.Black,
-                    color = if (isSelected) SiferColors.Black else SiferColors.TextSecondary
-                )
-                if (isSelected) {
-                    Box(
-                        modifier = Modifier
-                            .width(20.dp)
-                            .height(3.dp)
-                            .background(SiferColors.Yellow)
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Icon(
+                        imageVector = item.icon,
+                        contentDescription = null,
+                        tint = if (isSelected) SiferColors.Black else SiferColors.TextSecondary,
+                        modifier = Modifier.size(32.dp)
                     )
+                    if (isSelected) {
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Box(
+                            modifier = Modifier
+                                .width(24.dp)
+                                .height(3.dp)
+                                .background(SiferColors.Yellow)
+                        )
+                    }
                 }
             }
         }
