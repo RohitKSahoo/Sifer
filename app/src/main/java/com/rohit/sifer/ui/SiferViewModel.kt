@@ -1,9 +1,18 @@
 package com.rohit.sifer.ui
 
+import android.Manifest
 import android.app.Application
+import android.app.NotificationManager
 import android.content.Context
-import androidx.compose.runtime.mutableStateListOf
+import android.content.Intent
+import android.content.pm.PackageManager
+import android.net.Uri
+import android.os.Build
+import android.os.PowerManager
+import android.provider.Settings
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.mutableStateListOf
+import androidx.core.content.ContextCompat
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.rohit.sifer.data.AppDatabase
@@ -18,6 +27,7 @@ data class ActivityLog(val title: String, val subtitle: String, val timestamp: S
 
 class SiferViewModel(application: Application) : AndroidViewModel(application) {
 
+    private val context = application.applicationContext
     private val zoneDao = AppDatabase.getDatabase(application).zoneDao()
     private val geofenceManager = GeofenceManager(application)
     private val actionEngine = ActionEngine(application)
@@ -26,12 +36,79 @@ class SiferViewModel(application: Application) : AndroidViewModel(application) {
     val allZones: Flow<List<Zone>> = zoneDao.getAllZones()
     val isServiceEnabled = mutableStateOf(prefs.getBoolean("service_enabled", true))
     
-    // Automation Rule States
-    val isAutoSilenceEnabled = mutableStateOf(prefs.getBoolean("auto_silence_enabled", true))
-    val isWifiShieldEnabled = mutableStateOf(prefs.getBoolean("wifi_shield_enabled", false))
+    // NEW Automation Rule States (Simplified)
+    val isDndEnabled = mutableStateOf(prefs.getBoolean("rule_dnd", true))
+    val isVibrateEnabled = mutableStateOf(prefs.getBoolean("rule_vibrate", false))
+    val isMediaMuteEnabled = mutableStateOf(prefs.getBoolean("rule_media_mute", false))
+
+    // Real Permission States
+    val hasLocationPermission = mutableStateOf(checkLocationPermission())
+    val hasDndPermission = mutableStateOf(checkDndPermission())
+    val isBatteryOptimized = mutableStateOf(checkBatteryOptimization())
+    val isAutoStartEnabled = mutableStateOf(prefs.getBoolean("auto_start_on_boot", true))
 
     // Activity Logging
     val activityHistory = mutableStateListOf<ActivityLog>()
+
+    init {
+        refreshPermissionStates()
+    }
+
+    fun refreshPermissionStates() {
+        hasLocationPermission.value = checkLocationPermission()
+        hasDndPermission.value = checkDndPermission()
+        isBatteryOptimized.value = checkBatteryOptimization()
+    }
+
+    private fun checkLocationPermission(): Boolean {
+        return ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED
+    }
+
+    private fun checkDndPermission(): Boolean {
+        val nm = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            nm.isNotificationPolicyAccessGranted
+        } else true
+    }
+
+    private fun checkBatteryOptimization(): Boolean {
+        val pm = context.getSystemService(Context.POWER_SERVICE) as PowerManager
+        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            !pm.isIgnoringBatteryOptimizations(context.packageName)
+        } else false
+    }
+
+    fun openLocationSettings() {
+        val intent = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
+            data = Uri.fromParts("package", context.packageName, null)
+            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        }
+        context.startActivity(intent)
+    }
+
+    fun openDndSettings() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            val intent = Intent(Settings.ACTION_NOTIFICATION_POLICY_ACCESS_SETTINGS).apply {
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            }
+            context.startActivity(intent)
+        }
+    }
+
+    fun openBatterySettings() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            val intent = Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS).apply {
+                data = Uri.parse("package:${context.packageName}")
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            }
+            context.startActivity(intent)
+        }
+    }
+
+    fun toggleAutoStart(enabled: Boolean) {
+        isAutoStartEnabled.value = enabled
+        prefs.edit().putBoolean("auto_start_on_boot", enabled).apply()
+    }
 
     fun toggleService(enabled: Boolean) {
         isServiceEnabled.value = enabled
@@ -48,14 +125,31 @@ class SiferViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
     
-    fun toggleAutoSilence(enabled: Boolean) {
-        isAutoSilenceEnabled.value = enabled
-        prefs.edit().putBoolean("auto_silence_enabled", enabled).apply()
+    // UPDATED Toggle Handlers with Mutual Exclusion and Real-time refresh
+    fun toggleDndRule(enabled: Boolean) {
+        if (enabled) {
+            isVibrateEnabled.value = false
+            prefs.edit().putBoolean("rule_vibrate", false).apply()
+        }
+        isDndEnabled.value = enabled
+        prefs.edit().putBoolean("rule_dnd", enabled).apply()
+        actionEngine.refreshCurrentState()
     }
     
-    fun toggleWifiShield(enabled: Boolean) {
-        isWifiShieldEnabled.value = enabled
-        prefs.edit().putBoolean("wifi_shield_enabled", enabled).apply()
+    fun toggleVibrateRule(enabled: Boolean) {
+        if (enabled) {
+            isDndEnabled.value = false
+            prefs.edit().putBoolean("rule_dnd", false).apply()
+        }
+        isVibrateEnabled.value = enabled
+        prefs.edit().putBoolean("rule_vibrate", enabled).apply()
+        actionEngine.refreshCurrentState()
+    }
+    
+    fun toggleMediaMuteRule(enabled: Boolean) {
+        isMediaMuteEnabled.value = enabled
+        prefs.edit().putBoolean("rule_media_mute", enabled).apply()
+        actionEngine.refreshCurrentState()
     }
 
     fun addZone(name: String, latitude: Double, longitude: Double, radius: Float) {

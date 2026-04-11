@@ -2,23 +2,48 @@ package com.rohit.sifer.ui
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
 
 @Composable
-fun SettingsScreen() {
+fun SettingsScreen(viewModel: SiferViewModel) {
+    val hasLocation by viewModel.hasLocationPermission
+    val hasDnd by viewModel.hasDndPermission
+    val isBatteryOptimized by viewModel.isBatteryOptimized
+    val isAutoStartEnabled by viewModel.isAutoStartEnabled
+    
+    val lifecycleOwner = LocalLifecycleOwner.current
+
+    // Refresh permissions whenever user returns to the app from settings
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) {
+                viewModel.refreshPermissionStates()
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
+
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -36,6 +61,7 @@ fun SettingsScreen() {
                 Spacer(modifier = Modifier.height(8.dp))
                 Text(
                     text = "SETTINGS &\nPERMISSIONS",
+                    color = SiferColors.Black,
                     fontSize = 32.sp,
                     fontWeight = FontWeight.Black,
                     lineHeight = 36.sp
@@ -50,48 +76,6 @@ fun SettingsScreen() {
                 Spacer(modifier = Modifier.height(24.dp))
             }
 
-            // Recalibrate Card
-            item {
-                NeoBrutalCard {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.End
-                    ) {
-                        SiferBadge(text = "ACTION REQUIRED", backgroundColor = SiferColors.Black, textColor = SiferColors.White)
-                    }
-                    Text(text = "RECALIBRATE SENSORS", fontWeight = FontWeight.Black, fontSize = 18.sp)
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Text(
-                        text = "Reset biometric and environmental data arrays for 99.9% accuracy.",
-                        fontSize = 12.sp,
-                        color = SiferColors.TextSecondary
-                    )
-                    Spacer(modifier = Modifier.height(16.dp))
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(Icons.Default.Fingerprint, contentDescription = null, tint = SiferColors.Green, modifier = Modifier.size(32.dp))
-                        Spacer(modifier = Modifier.width(16.dp))
-                        SiferButton(text = "START SCAN")
-                    }
-                    Spacer(modifier = Modifier.height(16.dp))
-                    // Progress bar
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(6.dp)
-                            .background(SiferColors.Grey)
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth(0.6f)
-                                .fillMaxHeight()
-                                .background(SiferColors.Green)
-                        )
-                    }
-                }
-            }
-
-            item { Spacer(modifier = Modifier.height(24.dp)) }
-
             // Core Permissions Section
             item {
                 PermissionSectionHeader(number = "01", title = "CORE PERMISSIONS")
@@ -101,9 +85,11 @@ fun SettingsScreen() {
                 PermissionItem(
                     icon = Icons.Default.LocationOn,
                     title = "PRECISE LOCATION",
-                    status = "ACTIVE",
+                    status = if (hasLocation) "ACTIVE" else "REQUIRED",
+                    statusColor = if (hasLocation) SiferColors.Green else SiferColors.Red,
                     description = "Always-on background campus mapping.",
-                    checked = true
+                    checked = hasLocation,
+                    onClick = { if (!hasLocation) viewModel.openLocationSettings() }
                 )
             }
 
@@ -113,10 +99,11 @@ fun SettingsScreen() {
                 PermissionItem(
                     icon = Icons.Default.DoNotDisturbOn,
                     title = "DND ACCESS",
-                    status = "OFF",
-                    statusColor = SiferColors.Red,
+                    status = if (hasDnd) "ACTIVE" else "OFF",
+                    statusColor = if (hasDnd) SiferColors.Green else SiferColors.Red,
                     description = "Override silence during critical sifer alerts.",
-                    checked = false
+                    checked = hasDnd,
+                    onClick = { viewModel.openDndSettings() }
                 )
             }
 
@@ -131,9 +118,14 @@ fun SettingsScreen() {
                 GradientPermissionItem(
                     icon = Icons.Default.BatteryChargingFull,
                     title = "BATTERY OPTIMIZATION",
-                    description = "Ignore system restrictions for uninterrupted syncing.",
-                    gradient = Brush.verticalGradient(listOf(Color(0xFF80CBC4), Color(0xFFDCEDC8), Color(0xFFFFF9C4))),
-                    checked = true
+                    description = if (isBatteryOptimized) 
+                        "System is restricting background sync. Performance may be degraded." 
+                        else "Unrestricted background performance active.",
+                    gradient = if (isBatteryOptimized) 
+                        Brush.verticalGradient(listOf(Color(0xFFFFEBEE), Color(0xFFFFCDD2))) // Reddish
+                        else Brush.verticalGradient(listOf(Color(0xFF80CBC4), Color(0xFFDCEDC8))), // Greenish
+                    checked = !isBatteryOptimized,
+                    onClick = { if (isBatteryOptimized) viewModel.openBatterySettings() }
                 )
             }
 
@@ -144,8 +136,9 @@ fun SettingsScreen() {
                     icon = Icons.Default.PowerSettingsNew,
                     title = "AUTO-START ON BOOT",
                     description = "Initialize Sifer kernel immediately upon device wake.",
-                    gradient = Brush.verticalGradient(listOf(Color(0xFF80CBC4), Color(0xFFDCEDC8), Color(0xFFFFF9C4))),
-                    checked = true
+                    gradient = Brush.verticalGradient(listOf(Color(0xFF80CBC4), Color(0xFFDCEDC8))),
+                    checked = isAutoStartEnabled,
+                    onClick = { viewModel.toggleAutoStart(!isAutoStartEnabled) }
                 )
             }
 
@@ -182,7 +175,7 @@ fun PermissionSectionHeader(number: String, title: String) {
         }
         Spacer(modifier = Modifier.width(12.dp))
         Column {
-            Text(text = title, fontWeight = FontWeight.Black, fontSize = 16.sp)
+            Text(text = title, color = SiferColors.Black, fontWeight = FontWeight.Black, fontSize = 16.sp)
             Box(modifier = Modifier.fillMaxWidth().height(2.dp).background(SiferColors.Black))
         }
     }
@@ -195,12 +188,14 @@ fun PermissionItem(
     status: String,
     description: String,
     checked: Boolean,
-    statusColor: Color = SiferColors.Green
+    statusColor: Color = SiferColors.Green,
+    onClick: () -> Unit = {}
 ) {
     Box(
         modifier = Modifier
             .fillMaxWidth()
             .background(SiferColors.Grey)
+            .clickable { onClick() }
             .padding(16.dp)
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -211,16 +206,16 @@ fun PermissionItem(
                     .background(SiferColors.White),
                 contentAlignment = Alignment.Center
             ) {
-                Icon(icon, contentDescription = null, modifier = Modifier.size(20.dp))
+                Icon(icon, contentDescription = null, tint = SiferColors.Black, modifier = Modifier.size(20.dp))
             }
             Spacer(modifier = Modifier.width(16.dp))
             Column(modifier = Modifier.weight(1f)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(text = title, fontWeight = FontWeight.Black, fontSize = 14.sp)
+                    Text(text = title, color = SiferColors.Black, fontWeight = FontWeight.Black, fontSize = 14.sp)
                     Spacer(modifier = Modifier.width(8.dp))
                     SiferBadge(text = status, backgroundColor = statusColor.copy(alpha = 0.2f), textColor = statusColor)
                 }
-                Text(text = description, fontSize = 11.sp, color = SiferColors.TextSecondary)
+                Text(text = description, color = SiferColors.TextSecondary, fontSize = 11.sp)
             }
             SiferCheckbox(checked = checked)
         }
@@ -233,22 +228,24 @@ fun GradientPermissionItem(
     title: String,
     description: String,
     gradient: Brush,
-    checked: Boolean
+    checked: Boolean,
+    onClick: () -> Unit = {}
 ) {
     Box(
         modifier = Modifier
             .fillMaxWidth()
             .background(gradient)
             .border(1.dp, SiferColors.Black)
+            .clickable { onClick() }
             .padding(16.dp)
     ) {
         Row(verticalAlignment = Alignment.Top) {
-            Icon(icon, contentDescription = null, modifier = Modifier.size(24.dp))
+            Icon(icon, contentDescription = null, tint = SiferColors.Black, modifier = Modifier.size(24.dp))
             Spacer(modifier = Modifier.width(16.dp))
             Column(modifier = Modifier.weight(1f)) {
-                Text(text = title, fontWeight = FontWeight.Black, fontSize = 14.sp)
+                Text(text = title, color = SiferColors.Black, fontWeight = FontWeight.Black, fontSize = 14.sp)
                 Spacer(modifier = Modifier.height(4.dp))
-                Text(text = description, fontSize = 11.sp, color = Color(0xFF4A5568))
+                Text(text = description, color = Color(0xFF2D3748), fontSize = 11.sp)
             }
             SiferCheckbox(checked = checked)
         }

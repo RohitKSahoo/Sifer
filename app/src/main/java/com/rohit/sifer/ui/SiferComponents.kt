@@ -39,7 +39,7 @@ object SiferColors {
     val Yellow = SiferYellow
     val Grey = SiferGrey
     val MediumGrey = SiferMediumGrey
-    val TextSecondary = SiferTextSecondary
+    val TextSecondary = Color(0xFF4A4A4A) // Darker for better visibility
     val BlueBadge = SiferBlueBadge
     val LightBlue = SiferLightBlue
     val Red = SiferRed
@@ -173,9 +173,10 @@ fun SiferTopBar() {
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Icon(Icons.Default.Menu, contentDescription = null, modifier = Modifier.size(28.dp))
+        Icon(Icons.Default.Menu, contentDescription = null, modifier = Modifier.size(28.dp), tint = SiferColors.Black)
         Text(
             text = "SIFER",
+            color = SiferColors.Black,
             fontWeight = FontWeight.Black,
             fontStyle = FontStyle.Italic,
             fontSize = 24.sp,
@@ -187,7 +188,7 @@ fun SiferTopBar() {
                 .clip(CircleShape)
                 .border(2.dp, SiferColors.Black, CircleShape)
         ) {
-            Icon(Icons.Default.Person, contentDescription = null, modifier = Modifier.align(Alignment.Center))
+            Icon(Icons.Default.Person, contentDescription = null, modifier = Modifier.align(Alignment.Center), tint = SiferColors.Black)
         }
     }
 }
@@ -311,6 +312,7 @@ fun SiferSectionHeader(title: String, rightText: String? = null) {
         Column {
             Text(
                 text = title.uppercase(),
+                color = SiferColors.Black,
                 fontWeight = FontWeight.Black,
                 fontSize = 18.sp
             )

@@ -161,7 +161,7 @@ fun MainContainer() {
                     ) { 
                         coroutineScope.launch { pagerState.animateScrollToPage(0) }
                     }
-                    2 -> SettingsScreen()
+                    2 -> SettingsScreen(viewModel)
                 }
             }
         }

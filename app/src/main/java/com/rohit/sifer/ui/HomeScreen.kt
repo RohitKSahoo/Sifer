@@ -2,6 +2,7 @@ package com.rohit.sifer.ui
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -20,8 +21,10 @@ import com.rohit.sifer.data.Zone
 @Composable
 fun HomeScreen(viewModel: SiferViewModel) {
     val isServiceEnabled by viewModel.isServiceEnabled
-    val isAutoSilenceEnabled by viewModel.isAutoSilenceEnabled
-    val isWifiShieldEnabled by viewModel.isWifiShieldEnabled
+    val isDndEnabled by viewModel.isDndEnabled
+    val isVibrateEnabled by viewModel.isVibrateEnabled
+    val isMediaMuteEnabled by viewModel.isMediaMuteEnabled
+    
     val zones by viewModel.allZones.collectAsState(initial = emptyList())
     val history = viewModel.activityHistory
 
@@ -58,6 +61,7 @@ fun HomeScreen(viewModel: SiferViewModel) {
                             Spacer(modifier = Modifier.height(8.dp))
                             Text(
                                 text = if (isServiceEnabled) "Sifer Active" else "Sifer Paused",
+                                color = SiferColors.Black,
                                 fontSize = 32.sp,
                                 fontWeight = FontWeight.Black,
                                 lineHeight = 34.sp
@@ -103,27 +107,36 @@ fun HomeScreen(viewModel: SiferViewModel) {
             }
 
             item(key = "automation_rules") {
-                Row(modifier = Modifier.fillMaxWidth()) {
-                    // Rule 1
-                    Box(modifier = Modifier.weight(1f)) {
-                        NeoBrutalCard(padding = 12.dp, shadowOffset = 4.dp) {
-                            Icon(Icons.Default.VolumeOff, contentDescription = null, modifier = Modifier.size(20.dp))
-                            Spacer(modifier = Modifier.height(8.dp))
-                            Text(text = "Auto-Silence", fontWeight = FontWeight.Black, fontSize = 14.sp)
-                            Spacer(modifier = Modifier.height(8.dp))
-                            SiferSwitch(checked = isAutoSilenceEnabled, onCheckedChange = { viewModel.toggleAutoSilence(it) })
-                        }
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Row(modifier = Modifier.fillMaxWidth()) {
+                        // Rule 1: DND (Quick Tile Style)
+                        AutomationTile(
+                            title = "DND",
+                            icon = Icons.Default.DoNotDisturbOn,
+                            checked = isDndEnabled,
+                            onClick = { viewModel.toggleDndRule(!isDndEnabled) },
+                            modifier = Modifier.weight(1f)
+                        )
+                        Spacer(modifier = Modifier.width(12.dp))
+                        // Rule 2: Vibrate
+                        AutomationTile(
+                            title = "Vibrate",
+                            icon = Icons.Default.Vibration,
+                            checked = isVibrateEnabled,
+                            onClick = { viewModel.toggleVibrateRule(!isVibrateEnabled) },
+                            modifier = Modifier.weight(1f)
+                        )
                     }
-                    Spacer(modifier = Modifier.width(12.dp))
-                    // Rule 2
-                    Box(modifier = Modifier.weight(1f)) {
-                        NeoBrutalCard(padding = 12.dp, shadowOffset = 4.dp, backgroundColor = SiferColors.Grey) {
-                            Icon(Icons.Default.Wifi, contentDescription = null, modifier = Modifier.size(20.dp))
-                            Spacer(modifier = Modifier.height(8.dp))
-                            Text(text = "WiFi Shield", fontWeight = FontWeight.Black, fontSize = 14.sp)
-                            Spacer(modifier = Modifier.height(8.dp))
-                            SiferSwitch(checked = isWifiShieldEnabled, onCheckedChange = { viewModel.toggleWifiShield(it) })
-                        }
+                    Row(modifier = Modifier.fillMaxWidth()) {
+                        // Rule 3: Media Mute
+                        AutomationTile(
+                            title = "Media 0",
+                            icon = Icons.Default.MusicOff,
+                            checked = isMediaMuteEnabled,
+                            onClick = { viewModel.toggleMediaMuteRule(!isMediaMuteEnabled) },
+                            modifier = Modifier.weight(1f)
+                        )
+                        Spacer(modifier = Modifier.weight(1f))
                     }
                 }
             }
@@ -188,11 +201,11 @@ fun HomeScreen(viewModel: SiferViewModel) {
                                     .border(2.dp, SiferColors.Black),
                                 contentAlignment = Alignment.Center
                             ) {
-                                Icon(Icons.Default.History, contentDescription = null, modifier = Modifier.size(24.dp))
+                                Icon(Icons.Default.History, contentDescription = null, modifier = Modifier.size(24.dp), tint = SiferColors.Black)
                             }
                             Spacer(modifier = Modifier.width(12.dp))
                             Column {
-                                Text(log.title, fontWeight = FontWeight.Black, fontSize = 14.sp)
+                                Text(log.title, color = SiferColors.Black, fontWeight = FontWeight.Black, fontSize = 14.sp)
                                 Text("${log.subtitle} • ${log.timestamp}", fontSize = 11.sp, color = SiferColors.TextSecondary)
                             }
                         }
@@ -200,6 +213,28 @@ fun HomeScreen(viewModel: SiferViewModel) {
                     Spacer(modifier = Modifier.height(8.dp))
                 }
             }
+        }
+    }
+}
+
+@Composable
+fun AutomationTile(
+    title: String,
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    checked: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    NeoBrutalCard(
+        padding = 12.dp, 
+        shadowOffset = 4.dp, 
+        modifier = modifier.clickable { onClick() },
+        backgroundColor = if (checked) SiferColors.Green else SiferColors.White
+    ) {
+        Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) {
+            Icon(icon, contentDescription = null, modifier = Modifier.size(24.dp), tint = SiferColors.Black)
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(text = title, color = SiferColors.Black, fontWeight = FontWeight.Black, fontSize = 14.sp)
         }
     }
 }
