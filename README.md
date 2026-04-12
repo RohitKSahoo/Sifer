@@ -10,15 +10,30 @@ You can create location-based zones called **Havens**, and Sifer will:
 
 All of this happens automatically when you enter or leave those places.
 
+### 🎓 **For when your phone forgets it's in class and your reels become the main lecture.**
+
 ---
 
 ## 📱 Screenshots
 
-(Add your images here)
-
-![Home Screen](assets/Home_Screen.png)
-![Add Haven](assets/Add_Haven.png)
-![Settings](assets/Settings.png)
+<table align="center">
+  <tr>
+    <td align="center">
+      <img src="assets/Homepage.png" width="250"/><br/>
+      <b>Home Screen</b>
+    </td>
+    <td width="20"></td>
+    <td align="center">
+      <img src="assets/Havenpage.png" width="250"/><br/>
+      <b>Add Haven</b>
+    </td>
+    <td width="20"></td>
+    <td align="center">
+      <img src="assets/Settingpage.png" width="250"/><br/>
+      <b>Settings</b>
+    </td>
+  </tr>
+</table>
 
 ---
 
@@ -87,10 +102,7 @@ All of this happens automatically when you enter or leave those places.
 
 ### Installation
 
-git clone https://github.com/RohitKSahoo/sifer.git
-
-1. Open in Android Studio  
-2. Build and run on your device  
+Download the apk from releases and install without any hassle.
 
 ---
 
