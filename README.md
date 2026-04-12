@@ -102,7 +102,7 @@ All of this happens automatically when you enter or leave those places.
 
 ### Installation
 
-Download the apk from releases and install without any hassle.
+👉 [Download APK](https://github.com/RohitKSahoo/sifer/releases)
 
 ---
 
