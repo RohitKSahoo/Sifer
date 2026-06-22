@@ -226,7 +226,7 @@ fun AddHavenScreen(viewModel: SiferViewModel, isActive: Boolean, onZoneAdded: ()
             mapView.controller.animateTo(gp)
             mapView.controller.setZoom(17.5)
             searchQuery = suggestion.name
-            if (zoneName.isBlank()) zoneName = suggestion.name
+            zoneName = suggestion.name // Always update Haven Name on keyboard search
             suggestions = emptyList()
             focusManager.clearFocus()
         }
@@ -272,23 +272,23 @@ fun AddHavenScreen(viewModel: SiferViewModel, isActive: Boolean, onZoneAdded: ()
             tint = SiferColors.Black
         )
 
-        // TOP: FLOATING SEARCH
+        // TOP: FLOATING SEARCH - COMPACT SIZE
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(16.dp)
+                .padding(12.dp)
                 .statusBarsPadding()
         ) {
-            NeoBrutalCard(padding = 0.dp, shadowOffset = 4.dp) {
-                Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp)) {
-                    Icon(Icons.Default.Search, contentDescription = null, tint = SiferColors.Black, modifier = Modifier.size(20.dp))
+            NeoBrutalCard(padding = 0.dp, shadowOffset = 2.dp) {
+                Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(horizontal = 8.dp, vertical = 0.dp)) {
+                    Icon(Icons.Default.Search, contentDescription = null, tint = SiferColors.Black, modifier = Modifier.size(18.dp))
                     TextField(
                         value = searchQuery,
                         onValueChange = { searchQuery = it },
-                        placeholder = { Text("Search location...", color = SiferColors.MediumGrey, fontSize = 14.sp) },
+                        placeholder = { Text("Search location...", color = SiferColors.MediumGrey, fontSize = 13.sp) },
                         modifier = Modifier.weight(1f),
                         singleLine = true,
-                        textStyle = TextStyle(color = SiferColors.Black),
+                        textStyle = TextStyle(color = SiferColors.Black, fontSize = 14.sp),
                         keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
                         keyboardActions = KeyboardActions(onSearch = { performSearch(searchQuery) }),
                         colors = TextFieldDefaults.colors(
@@ -302,64 +302,59 @@ fun AddHavenScreen(viewModel: SiferViewModel, isActive: Boolean, onZoneAdded: ()
                     )
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         if (isSearching) {
-                            CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp, color = SiferColors.Black)
-                            Spacer(modifier = Modifier.width(8.dp))
+                            CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp, color = SiferColors.Black)
+                            Spacer(modifier = Modifier.width(6.dp))
                         }
                         if (searchQuery.isNotEmpty()) {
                             IconButton(onClick = { 
                                 searchQuery = ""
                                 suggestions = emptyList()
-                            }) {
-                                Icon(Icons.Default.Close, contentDescription = "Clear", tint = SiferColors.Black, modifier = Modifier.size(18.dp))
+                            }, modifier = Modifier.size(32.dp)) {
+                                Icon(Icons.Default.Close, contentDescription = "Clear", tint = SiferColors.Black, modifier = Modifier.size(16.dp))
                             }
                         }
                     }
                 }
             }
 
-            // Suggestions List - Appears instantly as user types
+            // Suggestions List - COMPACT
             AnimatedVisibility(
                 visible = suggestions.isNotEmpty(),
                 enter = expandVertically() + fadeIn(),
                 exit = shrinkVertically() + fadeOut()
             ) {
                 Spacer(modifier = Modifier.height(4.dp))
-                NeoBrutalCard(padding = 0.dp, shadowOffset = 4.dp) {
+                NeoBrutalCard(padding = 0.dp, shadowOffset = 3.dp) {
                     LazyColumn(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .heightIn(max = 300.dp)
+                            .heightIn(max = 200.dp)
                     ) {
                         items(suggestions) { suggestion ->
                             Column(
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .clickable {
-                                        // Update map to selected suggestion instantly
                                         val gp = GeoPoint(suggestion.latitude, suggestion.longitude)
                                         mapView.controller.animateTo(gp)
                                         mapView.controller.setZoom(17.5)
-                                        
-                                        // Update UI fields
                                         searchQuery = suggestion.name
-                                        if (zoneName.isBlank()) zoneName = suggestion.name
-                                        
-                                        // Hide list and keyboard
+                                        zoneName = suggestion.name
                                         suggestions = emptyList()
                                         focusManager.clearFocus()
                                     }
-                                    .padding(12.dp)
+                                    .padding(10.dp)
                             ) {
                                 Text(
                                     text = suggestion.name,
                                     fontWeight = FontWeight.Black,
-                                    fontSize = 14.sp,
+                                    fontSize = 13.sp,
                                     color = SiferColors.Black
                                 )
                                 if (suggestion.description.isNotBlank()) {
                                     Text(
                                         text = suggestion.description,
-                                        fontSize = 11.sp,
+                                        fontSize = 10.sp,
                                         color = SiferColors.TextSecondary
                                     )
                                 }
@@ -371,24 +366,24 @@ fun AddHavenScreen(viewModel: SiferViewModel, isActive: Boolean, onZoneAdded: ()
             }
         }
 
-        // RIGHT: MAP TOOLS
+        // RIGHT: MAP TOOLS - COMPACT
         Column(
             modifier = Modifier
                 .align(Alignment.CenterEnd)
-                .padding(end = 16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
+                .padding(end = 12.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             Column(
                 modifier = Modifier
                     .background(SiferColors.White, RoundedCornerShape(4.dp))
                     .border(2.dp, SiferColors.Black, RoundedCornerShape(4.dp))
             ) {
-                IconButton(onClick = { mapView.controller.zoomIn() }, modifier = Modifier.size(40.dp)) {
-                    Icon(Icons.Default.Add, contentDescription = "Zoom In", tint = SiferColors.Black)
+                IconButton(onClick = { mapView.controller.zoomIn() }, modifier = Modifier.size(36.dp)) {
+                    Icon(Icons.Default.Add, contentDescription = "Zoom In", tint = SiferColors.Black, modifier = Modifier.size(20.dp))
                 }
-                Box(modifier = Modifier.width(24.dp).height(2.dp).background(SiferColors.Black).align(Alignment.CenterHorizontally))
-                IconButton(onClick = { mapView.controller.zoomOut() }, modifier = Modifier.size(40.dp)) {
-                    Icon(Icons.Default.HorizontalRule, contentDescription = "Zoom Out", tint = SiferColors.Black)
+                Box(modifier = Modifier.width(20.dp).height(2.dp).background(SiferColors.Black).align(Alignment.CenterHorizontally))
+                IconButton(onClick = { mapView.controller.zoomOut() }, modifier = Modifier.size(36.dp)) {
+                    Icon(Icons.Default.HorizontalRule, contentDescription = "Zoom Out", tint = SiferColors.Black, modifier = Modifier.size(20.dp))
                 }
             }
 
@@ -397,33 +392,33 @@ fun AddHavenScreen(viewModel: SiferViewModel, isActive: Boolean, onZoneAdded: ()
                 containerColor = SiferColors.White,
                 contentColor = SiferColors.Black,
                 shape = RoundedCornerShape(4.dp),
-                modifier = Modifier.size(40.dp).border(2.dp, SiferColors.Black, RoundedCornerShape(4.dp)),
+                modifier = Modifier.size(36.dp).border(2.dp, SiferColors.Black, RoundedCornerShape(4.dp)),
                 elevation = FloatingActionButtonDefaults.elevation(0.dp, 0.dp)
             ) {
-                Icon(Icons.Default.MyLocation, contentDescription = "My Location", tint = SiferColors.Black, modifier = Modifier.size(20.dp))
+                Icon(Icons.Default.MyLocation, contentDescription = "My Location", tint = SiferColors.Black, modifier = Modifier.size(18.dp))
             }
         }
 
-        // BOTTOM: CONSOLIDATED INPUTS
+        // BOTTOM: CONSOLIDATED INPUTS - COMPACT
         Column(
             modifier = Modifier
                 .align(Alignment.BottomCenter)
-                .padding(16.dp)
+                .padding(12.dp)
                 .navigationBarsPadding(),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
+            verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            NeoBrutalCard(padding = 12.dp, shadowOffset = 6.dp) {
+            NeoBrutalCard(padding = 8.dp, shadowOffset = 4.dp) {
                 Column {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(Icons.AutoMirrored.Filled.Label, contentDescription = null, modifier = Modifier.size(16.dp), tint = SiferColors.Black)
-                        Spacer(modifier = Modifier.width(8.dp))
+                        Icon(Icons.AutoMirrored.Filled.Label, contentDescription = null, modifier = Modifier.size(14.dp), tint = SiferColors.Black)
+                        Spacer(modifier = Modifier.width(6.dp))
                         TextField(
                             value = zoneName,
                             onValueChange = { zoneName = it },
-                            placeholder = { Text("Haven Name (e.g. Home)", color = SiferColors.MediumGrey, fontSize = 14.sp) },
+                            placeholder = { Text("Haven Name (e.g. Home)", color = SiferColors.MediumGrey, fontSize = 13.sp) },
                             modifier = Modifier.fillMaxWidth(),
                             singleLine = true,
-                            textStyle = TextStyle(color = SiferColors.Black, fontSize = 14.sp),
+                            textStyle = TextStyle(color = SiferColors.Black, fontSize = 13.sp),
                             colors = TextFieldDefaults.colors(
                                 focusedContainerColor = Color.Transparent,
                                 unfocusedContainerColor = Color.Transparent,
@@ -435,11 +430,11 @@ fun AddHavenScreen(viewModel: SiferViewModel, isActive: Boolean, onZoneAdded: ()
                         )
                     }
                     
-                    Spacer(modifier = Modifier.height(12.dp))
+                    Spacer(modifier = Modifier.height(4.dp))
                     
                     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                        Text("RADIUS", color = SiferColors.Black, fontSize = 10.sp, fontWeight = FontWeight.Black)
-                        Text("${radius.toInt()}m", fontSize = 14.sp, fontWeight = FontWeight.Black, color = SiferColors.Green)
+                        Text("RADIUS", color = SiferColors.Black, fontSize = 9.sp, fontWeight = FontWeight.Black)
+                        Text("${radius.toInt()}m", fontSize = 13.sp, fontWeight = FontWeight.Black, color = SiferColors.Green)
                     }
                     Slider(
                         value = radius,
@@ -449,7 +444,8 @@ fun AddHavenScreen(viewModel: SiferViewModel, isActive: Boolean, onZoneAdded: ()
                             thumbColor = SiferColors.Black,
                             activeTrackColor = SiferColors.Green,
                             inactiveTrackColor = SiferColors.Grey
-                        )
+                        ),
+                        modifier = Modifier.height(32.dp)
                     )
                 }
             }
@@ -457,7 +453,7 @@ fun AddHavenScreen(viewModel: SiferViewModel, isActive: Boolean, onZoneAdded: ()
             SiferButton(
                 text = "ESTABLISH HAVEN",
                 icon = Icons.Default.AddLocation,
-                modifier = Modifier.fillMaxWidth().height(56.dp),
+                modifier = Modifier.fillMaxWidth().height(48.dp),
                 onClick = {
                     if (zoneName.isNotBlank()) {
                         val center = mapView.mapCenter as GeoPoint
