@@ -11,7 +11,6 @@ import android.os.Build
 import android.os.PowerManager
 import android.provider.Settings
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.mutableStateListOf
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
@@ -22,8 +21,8 @@ import com.rohit.sifer.logic.GeofenceManager
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
-
-data class ActivityLog(val title: String, val subtitle: String, val timestamp: String = "Just now")
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 
 class SiferViewModel(application: Application) : AndroidViewModel(application) {
 
@@ -32,6 +31,9 @@ class SiferViewModel(application: Application) : AndroidViewModel(application) {
     private val geofenceManager = GeofenceManager(application)
     private val actionEngine = ActionEngine(application)
     private val prefs = application.getSharedPreferences("sifer_prefs", Context.MODE_PRIVATE)
+
+    // Concurrency control to prevent crashes during rapid toggling
+    private val toggleMutex = Mutex()
 
     val allZones: Flow<List<Zone>> = zoneDao.getAllZones()
     val isServiceEnabled = mutableStateOf(prefs.getBoolean("service_enabled", true))
@@ -47,10 +49,26 @@ class SiferViewModel(application: Application) : AndroidViewModel(application) {
     val isBatteryOptimized = mutableStateOf(checkBatteryOptimization())
     val isAutoStartEnabled = mutableStateOf(prefs.getBoolean("auto_start_on_boot", true))
 
-    val activityHistory = mutableStateListOf<ActivityLog>()
+    // Persisted Error Logging
+    val lastError = mutableStateOf(prefs.getString("last_crash_error", null))
 
     init {
         refreshPermissionStates()
+        setupCrashHandler()
+    }
+
+    private fun setupCrashHandler() {
+        val defaultHandler = Thread.getDefaultUncaughtExceptionHandler()
+        Thread.setDefaultUncaughtExceptionHandler { thread, throwable ->
+            // Save crash info synchronously before process dies
+            prefs.edit().putString("last_crash_error", throwable.localizedMessage ?: "Unknown Error").commit()
+            defaultHandler?.uncaughtException(thread, throwable)
+        }
+    }
+
+    fun clearErrorLog() {
+        lastError.value = null
+        prefs.edit().remove("last_crash_error").apply()
     }
 
     fun refreshPermissionStates() {
@@ -173,8 +191,6 @@ class SiferViewModel(application: Application) : AndroidViewModel(application) {
             if (isServiceEnabled.value) {
                 geofenceManager.addGeofence(insertedZone)
             }
-            
-            logActivity("Created Haven '$name'", "Protocol initialized at current coordinates.")
         }
     }
 
@@ -182,29 +198,30 @@ class SiferViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch {
             geofenceManager.removeGeofence(zone)
             zoneDao.deleteZone(zone)
-            logActivity("Deleted Haven '${zone.name}'", "Monitoring protocol terminated.")
         }
     }
 
     fun toggleZone(zone: Zone) {
         viewModelScope.launch {
-            val updatedZone = zone.copy(isEnabled = !zone.isEnabled)
-            zoneDao.updateZone(updatedZone)
-            if (isServiceEnabled.value) {
-                if (updatedZone.isEnabled) {
-                    geofenceManager.addGeofence(updatedZone)
-                    logActivity("Enabled '${zone.name}'", "Resumed monitoring for this location.")
-                } else {
-                    geofenceManager.removeGeofence(updatedZone)
-                    actionEngine.exitZone(updatedZone.id.toString())
-                    logActivity("Disabled '${zone.name}'", "Paused monitoring for this location.")
+            // Guard with Mutex to handle rapid clicks sequentially
+            toggleMutex.withLock {
+                // Fetch fresh state from DB instead of using stale UI object
+                val currentZone = zoneDao.getZoneById(zone.id) ?: return@withLock
+                val newEnabledState = !currentZone.isEnabled
+                
+                val updatedZone = currentZone.copy(isEnabled = newEnabledState)
+                zoneDao.updateZone(updatedZone)
+                
+                if (isServiceEnabled.value) {
+                    if (newEnabledState) {
+                        geofenceManager.addGeofence(updatedZone)
+                    } else {
+                        geofenceManager.removeGeofence(updatedZone)
+                        // Also notify ActionEngine to restore state if this was the active zone
+                        actionEngine.exitZone(updatedZone.id.toString())
+                    }
                 }
             }
         }
-    }
-
-    private fun logActivity(title: String, subtitle: String) {
-        activityHistory.add(0, ActivityLog(title, subtitle))
-        if (activityHistory.size > 5) activityHistory.removeAt(activityHistory.size - 1)
     }
 }

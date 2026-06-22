@@ -229,13 +229,22 @@ fun AddHavenScreen(viewModel: SiferViewModel, isActive: Boolean, onZoneAdded: ()
                             unfocusedTextColor = SiferColors.Black
                         )
                     )
-                    if (searchQuery.isNotEmpty()) {
-                        IconButton(onClick = { searchQuery = "" }) {
-                            Icon(Icons.Default.Close, contentDescription = "Clear", tint = SiferColors.Black, modifier = Modifier.size(18.dp))
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        if (searchQuery.isNotEmpty()) {
+                            IconButton(onClick = { searchQuery = "" }) {
+                                Icon(Icons.Default.Close, contentDescription = "Clear", tint = SiferColors.Black, modifier = Modifier.size(18.dp))
+                            }
                         }
-                    } else {
-                        IconButton(onClick = { performSearch(searchQuery) }) {
-                            Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = "Search", tint = SiferColors.Black, modifier = Modifier.size(20.dp))
+                        IconButton(
+                            onClick = { performSearch(searchQuery) },
+                            enabled = searchQuery.isNotBlank()
+                        ) {
+                            Icon(
+                                Icons.AutoMirrored.Filled.ArrowForward,
+                                contentDescription = "Search",
+                                tint = if (searchQuery.isNotBlank()) SiferColors.Black else SiferColors.MediumGrey,
+                                modifier = Modifier.size(20.dp)
+                            )
                         }
                     }
                 }

@@ -26,14 +26,13 @@ fun HomeScreen(viewModel: SiferViewModel) {
     val isMediaMuteEnabled by viewModel.isMediaMuteEnabled
     
     val zones by viewModel.allZones.collectAsState(initial = emptyList())
-    val history = viewModel.activityHistory
+    val lastError by viewModel.lastError
 
     Box(
         modifier = Modifier
             .fillMaxSize()
             .background(SiferColors.White)
     ) {
-        // Feature 2: Paper Grid Background
         GridBackground()
 
         LazyColumn(
@@ -109,7 +108,6 @@ fun HomeScreen(viewModel: SiferViewModel) {
                 SiferSectionHeader(title = "Automation Rules")
             }
 
-            // Feature 1: Rules in a single row, smaller size
             item(key = "automation_rules") {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -171,44 +169,43 @@ fun HomeScreen(viewModel: SiferViewModel) {
 
             item { Spacer(modifier = Modifier.height(24.dp)) }
 
-            // Last Activity Section
-            item(key = "activity_header") {
-                SiferSectionHeader(title = "Recent Activity")
+            // Error Logging Section
+            item(key = "error_header") {
+                SiferSectionHeader(
+                    title = "System Logs",
+                    rightText = if (lastError != null) "CRITICAL" else "STABLE"
+                )
             }
 
-            if (history.isEmpty()) {
-                item(key = "no_activity") {
+            item(key = "error_content") {
+                if (lastError == null) {
                     NeoBrutalCard(backgroundColor = SiferColors.White.copy(alpha = 0.5f)) {
-                        Text(
-                            "No recent activity recorded.",
-                            fontSize = 12.sp,
-                            color = SiferColors.TextSecondary,
-                            textAlign = androidx.compose.ui.text.style.TextAlign.Center,
-                            modifier = Modifier.fillMaxWidth()
-                        )
-                    }
-                }
-            } else {
-                items(history, key = { it.timestamp + it.title }) { log ->
-                    NeoBrutalCard(padding = 12.dp) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
-                            Box(
-                                modifier = Modifier
-                                    .size(40.dp)
-                                    .background(SiferColors.Yellow)
-                                    .border(2.dp, SiferColors.Black),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Icon(Icons.Default.History, contentDescription = null, modifier = Modifier.size(24.dp), tint = SiferColors.Black)
-                            }
-                            Spacer(modifier = Modifier.width(12.dp))
-                            Column {
-                                Text(log.title, color = SiferColors.Black, fontWeight = FontWeight.Black, fontSize = 14.sp)
-                                Text("${log.subtitle} • ${log.timestamp}", fontSize = 11.sp, color = SiferColors.TextSecondary)
+                            Icon(Icons.Default.CheckCircle, contentDescription = null, tint = SiferColors.Green, modifier = Modifier.size(16.dp))
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                "Kernel status optimized. No issues detected.",
+                                fontSize = 12.sp,
+                                color = SiferColors.TextSecondary
+                            )
+                        }
+                    }
+                } else {
+                    NeoBrutalCard(backgroundColor = SiferColors.Red.copy(alpha = 0.1f)) {
+                        Column {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(Icons.Default.Error, contentDescription = null, tint = SiferColors.Red, modifier = Modifier.size(20.dp))
+                                Spacer(modifier = Modifier.width(12.dp))
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text("LAST CRASH REPORT", color = SiferColors.Black, fontWeight = FontWeight.Black, fontSize = 12.sp)
+                                    Text(lastError!!, fontSize = 11.sp, color = SiferColors.TextSecondary, lineHeight = 14.sp)
+                                }
+                                IconButton(onClick = { viewModel.clearErrorLog() }) {
+                                    Icon(Icons.Default.Delete, contentDescription = "Clear", tint = SiferColors.Black, modifier = Modifier.size(18.dp))
+                                }
                             }
                         }
                     }
-                    Spacer(modifier = Modifier.height(8.dp))
                 }
             }
         }
@@ -224,7 +221,7 @@ fun AutomationTile(
     modifier: Modifier = Modifier
 ) {
     NeoBrutalCard(
-        padding = 8.dp, // Reduced padding for smaller size
+        padding = 8.dp,
         shadowOffset = 4.dp, 
         modifier = modifier.clickable { onClick() },
         backgroundColor = if (checked) SiferColors.Green else SiferColors.White
@@ -232,7 +229,7 @@ fun AutomationTile(
         Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) {
             Icon(icon, contentDescription = null, modifier = Modifier.size(20.dp), tint = SiferColors.Black)
             Spacer(modifier = Modifier.height(4.dp))
-            Text(text = title, color = SiferColors.Black, fontWeight = FontWeight.Black, fontSize = 11.sp) // Smaller font
+            Text(text = title, color = SiferColors.Black, fontWeight = FontWeight.Black, fontSize = 11.sp)
         }
     }
 }
