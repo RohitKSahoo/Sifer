@@ -5,9 +5,13 @@ import android.location.Geocoder
 import android.os.Build
 import android.view.View
 import android.view.ViewGroup
+import androidx.compose.animation.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
@@ -35,15 +39,26 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.google.android.gms.location.LocationServices
 import com.google.android.gms.location.Priority
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import org.json.JSONObject
 import org.osmdroid.config.Configuration
 import org.osmdroid.tileprovider.tilesource.TileSourceFactory
 import org.osmdroid.util.GeoPoint
 import org.osmdroid.views.MapView
 import org.osmdroid.views.overlay.Marker
 import org.osmdroid.views.overlay.Polygon
+import java.net.HttpURLConnection
+import java.net.URL
 import java.util.*
+
+data class PhotonSuggestion(
+    val name: String,
+    val description: String,
+    val latitude: Double,
+    val longitude: Double
+)
 
 @SuppressLint("MissingPermission")
 @Composable
@@ -105,9 +120,10 @@ fun AddHavenScreen(viewModel: SiferViewModel, isActive: Boolean, onZoneAdded: ()
     }
     
     var zoneName by remember { mutableStateOf("") }
-    var radius by remember { mutableFloatStateOf(100f) }
+    var radius by remember { mutableStateOf(100f) }
     var searchQuery by remember { mutableStateOf("") }
-    val geocoder = remember { Geocoder(context, Locale.getDefault()) }
+    var suggestions by remember { mutableStateOf(emptyList<PhotonSuggestion>()) }
+    var isSearching by remember { mutableStateOf(false) }
 
     // Logic to snap to location
     val snapToLocation: () -> Unit = {
@@ -137,27 +153,82 @@ fun AddHavenScreen(viewModel: SiferViewModel, isActive: Boolean, onZoneAdded: ()
         }
     }
 
-    val performSearch: (String) -> Unit = { query ->
-        if (query.isNotBlank()) {
-            scope.launch {
-                @Suppress("DEPRECATION")
-                val addresses = withContext(Dispatchers.IO) {
-                    try {
-                        geocoder.getFromLocationName(query, 1)
-                    } catch (e: Exception) {
-                        null
+    // Photon API Search Implementation with Location Biasing
+    LaunchedEffect(searchQuery) {
+        val trimmedQuery = searchQuery.trim()
+        if (trimmedQuery.length < 2) {
+            suggestions = emptyList()
+            isSearching = false
+            return@LaunchedEffect
+        }
+
+        delay(250) // Faster response
+        isSearching = true
+        
+        // Use current map center to bias results (important for "nearby" relevance)
+        val center = mapView.mapCenter as GeoPoint
+        
+        withContext(Dispatchers.IO) {
+            try {
+                // lat/lon parameters bias the search to current location/view
+                val urlString = "https://photon.komoot.io/api/?q=${trimmedQuery.replace(" ", "+")}&limit=5&lat=${center.latitude}&lon=${center.longitude}"
+                val url = URL(urlString)
+                val connection = url.openConnection() as HttpURLConnection
+                connection.connectTimeout = 5000
+                val response = connection.inputStream.bufferedReader().readText()
+                val json = JSONObject(response)
+                val features = json.getJSONArray("features")
+                
+                val results = mutableListOf<PhotonSuggestion>()
+                for (i in 0 until features.length()) {
+                    val feature = features.getJSONObject(i)
+                    val props = feature.getJSONObject("properties")
+                    val coords = feature.getJSONObject("geometry").getJSONArray("coordinates")
+                    
+                    val name = props.optString("name", "")
+                    val street = props.optString("street", "")
+                    val houseNumber = props.optString("housenumber", "")
+                    
+                    val displayName = when {
+                        name.isNotBlank() -> name
+                        street.isNotBlank() -> "$houseNumber $street".trim()
+                        else -> "Unknown Location"
                     }
+                    
+                    val city = props.optString("city", "")
+                    val country = props.optString("country", "")
+                    val description = listOf(city, country).filter { it.isNotBlank() }.joinToString(", ")
+                    
+                    results.add(PhotonSuggestion(
+                        name = displayName,
+                        description = description,
+                        latitude = coords.getDouble(1),
+                        longitude = coords.getDouble(0)
+                    ))
                 }
-                if (!addresses.isNullOrEmpty()) {
-                    val address = addresses[0]
-                    val gp = GeoPoint(address.latitude, address.longitude)
-                    withContext(Dispatchers.Main) {
-                        mapView.controller.animateTo(gp)
-                        mapView.controller.setZoom(17.5)
-                        focusManager.clearFocus()
-                    }
+                
+                withContext(Dispatchers.Main) {
+                    suggestions = results
+                    isSearching = false
+                }
+            } catch (e: Exception) {
+                withContext(Dispatchers.Main) {
+                    isSearching = false
                 }
             }
+        }
+    }
+
+    val performSearch: (String) -> Unit = { query ->
+        if (query.isNotBlank() && suggestions.isNotEmpty()) {
+            val suggestion = suggestions[0]
+            val gp = GeoPoint(suggestion.latitude, suggestion.longitude)
+            mapView.controller.animateTo(gp)
+            mapView.controller.setZoom(17.5)
+            searchQuery = suggestion.name
+            if (zoneName.isBlank()) zoneName = suggestion.name
+            suggestions = emptyList()
+            focusManager.clearFocus()
         }
     }
 
@@ -202,7 +273,7 @@ fun AddHavenScreen(viewModel: SiferViewModel, isActive: Boolean, onZoneAdded: ()
         )
 
         // TOP: FLOATING SEARCH
-        Box(
+        Column(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(16.dp)
@@ -217,7 +288,7 @@ fun AddHavenScreen(viewModel: SiferViewModel, isActive: Boolean, onZoneAdded: ()
                         placeholder = { Text("Search location...", color = SiferColors.MediumGrey, fontSize = 14.sp) },
                         modifier = Modifier.weight(1f),
                         singleLine = true,
-                        textStyle = TextStyle(color = SiferColors.Black), // Feature 3: Explicit Black text
+                        textStyle = TextStyle(color = SiferColors.Black),
                         keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
                         keyboardActions = KeyboardActions(onSearch = { performSearch(searchQuery) }),
                         colors = TextFieldDefaults.colors(
@@ -230,21 +301,70 @@ fun AddHavenScreen(viewModel: SiferViewModel, isActive: Boolean, onZoneAdded: ()
                         )
                     )
                     Row(verticalAlignment = Alignment.CenterVertically) {
+                        if (isSearching) {
+                            CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp, color = SiferColors.Black)
+                            Spacer(modifier = Modifier.width(8.dp))
+                        }
                         if (searchQuery.isNotEmpty()) {
-                            IconButton(onClick = { searchQuery = "" }) {
+                            IconButton(onClick = { 
+                                searchQuery = ""
+                                suggestions = emptyList()
+                            }) {
                                 Icon(Icons.Default.Close, contentDescription = "Clear", tint = SiferColors.Black, modifier = Modifier.size(18.dp))
                             }
                         }
-                        IconButton(
-                            onClick = { performSearch(searchQuery) },
-                            enabled = searchQuery.isNotBlank()
-                        ) {
-                            Icon(
-                                Icons.AutoMirrored.Filled.ArrowForward,
-                                contentDescription = "Search",
-                                tint = if (searchQuery.isNotBlank()) SiferColors.Black else SiferColors.MediumGrey,
-                                modifier = Modifier.size(20.dp)
-                            )
+                    }
+                }
+            }
+
+            // Suggestions List - Appears instantly as user types
+            AnimatedVisibility(
+                visible = suggestions.isNotEmpty(),
+                enter = expandVertically() + fadeIn(),
+                exit = shrinkVertically() + fadeOut()
+            ) {
+                Spacer(modifier = Modifier.height(4.dp))
+                NeoBrutalCard(padding = 0.dp, shadowOffset = 4.dp) {
+                    LazyColumn(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .heightIn(max = 300.dp)
+                    ) {
+                        items(suggestions) { suggestion ->
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clickable {
+                                        // Update map to selected suggestion instantly
+                                        val gp = GeoPoint(suggestion.latitude, suggestion.longitude)
+                                        mapView.controller.animateTo(gp)
+                                        mapView.controller.setZoom(17.5)
+                                        
+                                        // Update UI fields
+                                        searchQuery = suggestion.name
+                                        if (zoneName.isBlank()) zoneName = suggestion.name
+                                        
+                                        // Hide list and keyboard
+                                        suggestions = emptyList()
+                                        focusManager.clearFocus()
+                                    }
+                                    .padding(12.dp)
+                            ) {
+                                Text(
+                                    text = suggestion.name,
+                                    fontWeight = FontWeight.Black,
+                                    fontSize = 14.sp,
+                                    color = SiferColors.Black
+                                )
+                                if (suggestion.description.isNotBlank()) {
+                                    Text(
+                                        text = suggestion.description,
+                                        fontSize = 11.sp,
+                                        color = SiferColors.TextSecondary
+                                    )
+                                }
+                            }
+                            HorizontalDivider(color = SiferColors.Black, thickness = 1.dp)
                         }
                     }
                 }
@@ -303,7 +423,7 @@ fun AddHavenScreen(viewModel: SiferViewModel, isActive: Boolean, onZoneAdded: ()
                             placeholder = { Text("Haven Name (e.g. Home)", color = SiferColors.MediumGrey, fontSize = 14.sp) },
                             modifier = Modifier.fillMaxWidth(),
                             singleLine = true,
-                            textStyle = TextStyle(color = SiferColors.Black, fontSize = 14.sp), // Feature 3: Explicit Black text
+                            textStyle = TextStyle(color = SiferColors.Black, fontSize = 14.sp),
                             colors = TextFieldDefaults.colors(
                                 focusedContainerColor = Color.Transparent,
                                 unfocusedContainerColor = Color.Transparent,
