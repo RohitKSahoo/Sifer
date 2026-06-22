@@ -23,9 +23,6 @@ import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.toArgb
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -55,7 +52,6 @@ class MainActivity : ComponentActivity() {
         osmConfig.tileDownloadThreads = 12
         osmConfig.tileFileSystemCacheMaxBytes = 600L * 1024 * 1024
         
-        // FIX: Force Light Status Bar (Dark Icons) to ensure visibility on white background
         enableEdgeToEdge(
             statusBarStyle = SystemBarStyle.light(
                 android.graphics.Color.TRANSPARENT,
@@ -80,6 +76,7 @@ fun MainContainer() {
     val context = LocalContext.current
     val viewModel: SiferViewModel = viewModel()
     var showDndDialog by remember { mutableStateOf(false) }
+    var showBackgroundLocationDialog by remember { mutableStateOf(false) }
     
     val pagerState = rememberPagerState(pageCount = { 3 })
     val coroutineScope = rememberCoroutineScope()
@@ -88,27 +85,44 @@ fun MainContainer() {
         derivedStateOf { pagerState.currentPage }
     }
 
-    // Permission handling
-    val locationPermissions = arrayOf(
-        Manifest.permission.ACCESS_FINE_LOCATION,
-        Manifest.permission.ACCESS_COARSE_LOCATION
-    )
+    // Permission launchers
+    val backgroundLocationLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { granted ->
+        if (granted) {
+            viewModel.refreshPermissionStates()
+        } else {
+            Toast.makeText(context, "Background location is required for automatic protection", Toast.LENGTH_LONG).show()
+        }
+    }
 
-    val launcher = rememberLauncherForActivityResult(
+    val foregroundLocationLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
     ) { permissions ->
-        val granted = permissions.entries.all { it.value }
-        if (!granted) {
-            Toast.makeText(context, "Location permissions are required for geofencing", Toast.LENGTH_SHORT).show()
+        val allGranted = permissions.entries.all { it.value }
+        if (allGranted) {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                showBackgroundLocationDialog = true
+            }
+            viewModel.refreshPermissionStates()
+        } else {
+            Toast.makeText(context, "Location permissions are required", Toast.LENGTH_SHORT).show()
         }
     }
 
     LaunchedEffect(Unit) {
-        val allGranted = locationPermissions.all {
-            ContextCompat.checkSelfPermission(context, it) == PackageManager.PERMISSION_GRANTED
-        }
-        if (!allGranted) {
-            launcher.launch(locationPermissions)
+        val hasForeground = ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED
+        
+        if (!hasForeground) {
+            foregroundLocationLauncher.launch(arrayOf(
+                Manifest.permission.ACCESS_FINE_LOCATION,
+                Manifest.permission.ACCESS_COARSE_LOCATION
+            ))
+        } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            val hasBackground = ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_BACKGROUND_LOCATION) == PackageManager.PERMISSION_GRANTED
+            if (!hasBackground) {
+                showBackgroundLocationDialog = true
+            }
         }
         
         val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
@@ -117,12 +131,39 @@ fun MainContainer() {
         }
     }
 
+    if (showBackgroundLocationDialog) {
+        AlertDialog(
+            onDismissRequest = { showBackgroundLocationDialog = false },
+            title = { Text("Background Location Required") },
+            text = { 
+                Text("Sifer needs 'Allow all the time' location access to detect when you enter a Haven even when the app is closed. Please select 'Allow all the time' in the next screen.") 
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        showBackgroundLocationDialog = false
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                            backgroundLocationLauncher.launch(Manifest.permission.ACCESS_BACKGROUND_LOCATION)
+                        }
+                    }
+                ) {
+                    Text("Grant Permission")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showBackgroundLocationDialog = false }) {
+                    Text("Later")
+                }
+            }
+        )
+    }
+
     if (showDndDialog) {
         AlertDialog(
             onDismissRequest = { showDndDialog = false },
             title = { Text("DND Access Required") },
             text = { 
-                Text("Sifer needs Do Not Disturb access to automatically silence your phone when you enter a Haven.") 
+                Text("Sifer needs Do Not Disturb access to automatically silence your phone.") 
             },
             confirmButton = {
                 Button(
@@ -158,9 +199,9 @@ fun MainContainer() {
                 .padding(padding),
             beyondViewportPageCount = 2,
             key = { it },
-            userScrollEnabled = false // Disabled swiping to prevent interference with Map dragging
+            userScrollEnabled = false
         ) { page ->
-            Box(Modifier.graphicsLayer { clip = true }) {
+            Box {
                 when (page) {
                     0 -> HomeScreen(viewModel)
                     1 -> AddHavenScreen(

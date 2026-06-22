@@ -2,6 +2,7 @@ package com.rohit.sifer.ui
 
 import android.content.Intent
 import android.net.Uri
+import android.os.Build
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -29,6 +30,7 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 @Composable
 fun SettingsScreen(viewModel: SiferViewModel) {
     val hasLocation by viewModel.hasLocationPermission
+    val hasBgLocation by viewModel.hasBackgroundLocationPermission
     val hasDnd by viewModel.hasDndPermission
     val isBatteryOptimized by viewModel.isBatteryOptimized
     val isAutoStartEnabled by viewModel.isAutoStartEnabled
@@ -60,7 +62,7 @@ fun SettingsScreen(viewModel: SiferViewModel) {
                 SiferBadge(text = "SYSTEM_CONFIG_V4.0", backgroundColor = SiferColors.LightBlue)
                 Spacer(modifier = Modifier.height(8.dp))
                 Text(
-                    text = "SETTINGS", // Feature 5: Renamed
+                    text = "SETTINGS",
                     color = SiferColors.Black,
                     fontSize = 32.sp,
                     fontWeight = FontWeight.Black,
@@ -86,10 +88,25 @@ fun SettingsScreen(viewModel: SiferViewModel) {
                     title = "PRECISE LOCATION",
                     status = if (hasLocation) "ACTIVE" else "REQUIRED",
                     statusColor = if (hasLocation) SiferColors.Green else SiferColors.Red,
-                    description = "Always-on background campus mapping.",
+                    description = "Needed to define Haven boundaries.",
                     checked = hasLocation,
                     onClick = { if (!hasLocation) viewModel.openLocationSettings() }
                 )
+            }
+
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                item { Spacer(modifier = Modifier.height(12.dp)) }
+                item {
+                    PermissionItem(
+                        icon = Icons.Default.Explore,
+                        title = "BACKGROUND LOCATION",
+                        status = if (hasBgLocation) "ACTIVE" else "REQUIRED",
+                        statusColor = if (hasBgLocation) SiferColors.Green else SiferColors.Red,
+                        description = "Set to 'Allow all the time' for automatic triggers.",
+                        checked = hasBgLocation,
+                        onClick = { viewModel.openLocationSettings() }
+                    )
+                }
             }
 
             item { Spacer(modifier = Modifier.height(12.dp)) }
@@ -142,7 +159,6 @@ fun SettingsScreen(viewModel: SiferViewModel) {
 
             item { Spacer(modifier = Modifier.height(32.dp)) }
 
-            // Feature 5: GitHub Link Footer
             item {
                 Box(
                     modifier = Modifier

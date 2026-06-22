@@ -36,18 +36,17 @@ class SiferViewModel(application: Application) : AndroidViewModel(application) {
     val allZones: Flow<List<Zone>> = zoneDao.getAllZones()
     val isServiceEnabled = mutableStateOf(prefs.getBoolean("service_enabled", true))
     
-    // NEW Automation Rule States (Simplified)
     val isDndEnabled = mutableStateOf(prefs.getBoolean("rule_dnd", true))
     val isVibrateEnabled = mutableStateOf(prefs.getBoolean("rule_vibrate", false))
     val isMediaMuteEnabled = mutableStateOf(prefs.getBoolean("rule_media_mute", false))
 
     // Real Permission States
     val hasLocationPermission = mutableStateOf(checkLocationPermission())
+    val hasBackgroundLocationPermission = mutableStateOf(checkBackgroundLocationPermission())
     val hasDndPermission = mutableStateOf(checkDndPermission())
     val isBatteryOptimized = mutableStateOf(checkBatteryOptimization())
     val isAutoStartEnabled = mutableStateOf(prefs.getBoolean("auto_start_on_boot", true))
 
-    // Activity Logging
     val activityHistory = mutableStateListOf<ActivityLog>()
 
     init {
@@ -56,12 +55,21 @@ class SiferViewModel(application: Application) : AndroidViewModel(application) {
 
     fun refreshPermissionStates() {
         hasLocationPermission.value = checkLocationPermission()
+        hasBackgroundLocationPermission.value = checkBackgroundLocationPermission()
         hasDndPermission.value = checkDndPermission()
         isBatteryOptimized.value = checkBatteryOptimization()
     }
 
     private fun checkLocationPermission(): Boolean {
         return ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED
+    }
+
+    private fun checkBackgroundLocationPermission(): Boolean {
+        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_BACKGROUND_LOCATION) == PackageManager.PERMISSION_GRANTED
+        } else {
+            true
+        }
     }
 
     private fun checkDndPermission(): Boolean {
@@ -125,7 +133,6 @@ class SiferViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
     
-    // UPDATED Toggle Handlers with Mutual Exclusion and Real-time refresh
     fun toggleDndRule(enabled: Boolean) {
         if (enabled) {
             isVibrateEnabled.value = false
