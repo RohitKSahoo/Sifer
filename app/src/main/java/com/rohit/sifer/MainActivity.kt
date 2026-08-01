@@ -96,6 +96,14 @@ fun MainContainer() {
         }
     }
 
+    val notificationLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { granted ->
+        if (!granted) {
+            Toast.makeText(context, "Notifications are recommended for Haven alerts", Toast.LENGTH_SHORT).show()
+        }
+    }
+
     val foregroundLocationLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
     ) { permissions ->
@@ -122,6 +130,13 @@ fun MainContainer() {
             val hasBackground = ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_BACKGROUND_LOCATION) == PackageManager.PERMISSION_GRANTED
             if (!hasBackground) {
                 showBackgroundLocationDialog = true
+            }
+        }
+        
+        // Request notification permission for Android 13+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            if (ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
+                notificationLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
             }
         }
         

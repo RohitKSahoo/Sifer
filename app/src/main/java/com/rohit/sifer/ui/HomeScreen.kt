@@ -1,7 +1,6 @@
 package com.rohit.sifer.ui
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -12,7 +11,6 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -26,7 +24,6 @@ fun HomeScreen(viewModel: SiferViewModel) {
     val isMediaMuteEnabled by viewModel.isMediaMuteEnabled
     
     val zones by viewModel.allZones.collectAsState(initial = emptyList())
-    val lastError by viewModel.lastError
 
     Box(
         modifier = Modifier
@@ -164,48 +161,6 @@ fun HomeScreen(viewModel: SiferViewModel) {
                         onDelete = { viewModel.deleteZone(zone) }
                     )
                     Spacer(modifier = Modifier.height(12.dp))
-                }
-            }
-
-            item { Spacer(modifier = Modifier.height(24.dp)) }
-
-            // Error Logging Section
-            item(key = "error_header") {
-                SiferSectionHeader(
-                    title = "System Logs",
-                    rightText = if (lastError != null) "CRITICAL" else "STABLE"
-                )
-            }
-
-            item(key = "error_content") {
-                if (lastError == null) {
-                    NeoBrutalCard(backgroundColor = SiferColors.White.copy(alpha = 0.5f)) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(Icons.Default.CheckCircle, contentDescription = null, tint = SiferColors.Green, modifier = Modifier.size(16.dp))
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text(
-                                "Kernel status optimized. No issues detected.",
-                                fontSize = 12.sp,
-                                color = SiferColors.TextSecondary
-                            )
-                        }
-                    }
-                } else {
-                    NeoBrutalCard(backgroundColor = SiferColors.Red.copy(alpha = 0.1f)) {
-                        Column {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Icon(Icons.Default.Error, contentDescription = null, tint = SiferColors.Red, modifier = Modifier.size(20.dp))
-                                Spacer(modifier = Modifier.width(12.dp))
-                                Column(modifier = Modifier.weight(1f)) {
-                                    Text("LAST CRASH REPORT", color = SiferColors.Black, fontWeight = FontWeight.Black, fontSize = 12.sp)
-                                    Text(lastError!!, fontSize = 11.sp, color = SiferColors.TextSecondary, lineHeight = 14.sp)
-                                }
-                                IconButton(onClick = { viewModel.clearErrorLog() }) {
-                                    Icon(Icons.Default.Delete, contentDescription = "Clear", tint = SiferColors.Black, modifier = Modifier.size(18.dp))
-                                }
-                            }
-                        }
-                    }
                 }
             }
         }

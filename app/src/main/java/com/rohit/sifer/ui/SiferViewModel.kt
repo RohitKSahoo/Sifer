@@ -49,26 +49,13 @@ class SiferViewModel(application: Application) : AndroidViewModel(application) {
     val isBatteryOptimized = mutableStateOf(checkBatteryOptimization())
     val isAutoStartEnabled = mutableStateOf(prefs.getBoolean("auto_start_on_boot", true))
 
-    // Persisted Error Logging
-    val lastError = mutableStateOf(prefs.getString("last_crash_error", null))
-
     init {
         refreshPermissionStates()
-        setupCrashHandler()
-    }
-
-    private fun setupCrashHandler() {
-        val defaultHandler = Thread.getDefaultUncaughtExceptionHandler()
-        Thread.setDefaultUncaughtExceptionHandler { thread, throwable ->
-            // Save crash info synchronously before process dies
-            prefs.edit().putString("last_crash_error", throwable.localizedMessage ?: "Unknown Error").commit()
-            defaultHandler?.uncaughtException(thread, throwable)
+        
+        // Initial sync on app start to catch if we're already in a haven
+        viewModelScope.launch {
+            actionEngine.refreshCurrentState()
         }
-    }
-
-    fun clearErrorLog() {
-        lastError.value = null
-        prefs.edit().remove("last_crash_error").apply()
     }
 
     fun refreshPermissionStates() {
@@ -144,6 +131,8 @@ class SiferViewModel(application: Application) : AndroidViewModel(application) {
             if (enabled) {
                 val zones = allZones.first()
                 geofenceManager.addGeofences(zones)
+                // Force check if we're already in a haven when service starts
+                actionEngine.refreshCurrentState()
             } else {
                 geofenceManager.removeAllGeofences()
                 actionEngine.stopServiceManually()
@@ -190,6 +179,8 @@ class SiferViewModel(application: Application) : AndroidViewModel(application) {
             val insertedZone = zone.copy(id = id.toInt())
             if (isServiceEnabled.value) {
                 geofenceManager.addGeofence(insertedZone)
+                // Check if the newly added zone should be active immediately
+                actionEngine.refreshCurrentState()
             }
         }
     }
@@ -197,6 +188,8 @@ class SiferViewModel(application: Application) : AndroidViewModel(application) {
     fun deleteZone(zone: Zone) {
         viewModelScope.launch {
             geofenceManager.removeGeofence(zone)
+            // Ensure ActionEngine removes it from active list if it was active
+            actionEngine.exitZone(zone.id.toString())
             zoneDao.deleteZone(zone)
         }
     }
@@ -215,6 +208,8 @@ class SiferViewModel(application: Application) : AndroidViewModel(application) {
                 if (isServiceEnabled.value) {
                     if (newEnabledState) {
                         geofenceManager.addGeofence(updatedZone)
+                        // PROXIMITY SYNC: Force check if we are already inside the newly enabled zone
+                        actionEngine.refreshCurrentState()
                     } else {
                         geofenceManager.removeGeofence(updatedZone)
                         // Also notify ActionEngine to restore state if this was the active zone

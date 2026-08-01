@@ -2,6 +2,26 @@
 
 ## 2026-04-11
 
+### Iteration 16
+#### Modified
+- **Home UI Cleanup**: Removed "System Logs" section to simplify the main dashboard.
+- **Settings UI Cleanup**: Removed legacy "SYSTEM_CONFIG" badge and "SETTINGS" headers to reduce visual clutter.
+- **Diagnostics Removal**: Removed the "DIAGNOSTICS" section and simulation buttons, streamlining the production settings interface.
+
+### Iteration 15
+#### Added
+- **Event-Based Notifications**: Real-time entry and exit alerts (e.g., "Entered Home - Phone silenced") using a high-priority channel that bypasses DND.
+- **Simulate Entry/Exit Buttons**: New diagnostic tools in Settings to test Haven transitions and notification styles manually.
+#### Fixed
+- **Instant Proximity Sync**: Eliminated delays in activation by forcing high-accuracy GPS sync immediately when a Haven is toggled on.
+- **Phantom Silencing**: Implemented a validation layer to prevent deleted or disabled Havens from affecting device state.
+- **UI Interaction Polish**: Removed dark hover/click overlays on all settings buttons to maintain a clean Neo-Brutal aesthetic.
+- **Task Compilation Fix**: Resolved unresolved reference errors by implementing a custom `awaitResult` coroutine extension for Google Play Services Tasks.
+#### Modified
+- **Search Engine Upgrade**: Integrated Photon API for "as-you-type" location suggestions with local biasing.
+- **Compact UI Overhaul**: Streamlined the map search and Haven input fields to maximize map visibility.
+- **Smart Auto-Fill**: Location selection now automatically updates the Haven name and precision zooms the map.
+
 ### Iteration 14
 #### Fixed
 - **Animation Performance:** Implemented hardware-accelerated transitions for `HorizontalPager` using `graphicsLayer` to eliminate lag during tab switching.

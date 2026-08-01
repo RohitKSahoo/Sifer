@@ -6,6 +6,7 @@ import android.os.Build
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material.icons.Icons
@@ -14,6 +15,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
@@ -58,23 +60,6 @@ fun SettingsScreen(viewModel: SiferViewModel) {
             contentPadding = PaddingValues(bottom = 80.dp)
         ) {
             item {
-                Spacer(modifier = Modifier.height(16.dp))
-                SiferBadge(text = "SYSTEM_CONFIG_V4.0", backgroundColor = SiferColors.LightBlue)
-                Spacer(modifier = Modifier.height(8.dp))
-                Text(
-                    text = "SETTINGS",
-                    color = SiferColors.Black,
-                    fontSize = 32.sp,
-                    fontWeight = FontWeight.Black,
-                    lineHeight = 36.sp
-                )
-                Spacer(modifier = Modifier.height(8.dp))
-                Text(
-                    text = "Optimizing sensor fidelity for your campus experience.",
-                    fontSize = 14.sp,
-                    color = SiferColors.TextSecondary,
-                    fontStyle = androidx.compose.ui.text.font.FontStyle.Italic
-                )
                 Spacer(modifier = Modifier.height(24.dp))
             }
 
@@ -160,11 +145,15 @@ fun SettingsScreen(viewModel: SiferViewModel) {
             item { Spacer(modifier = Modifier.height(32.dp)) }
 
             item {
+                val githubInteractionSource = remember { MutableInteractionSource() }
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(vertical = 16.dp)
-                        .clickable {
+                        .clickable(
+                            interactionSource = githubInteractionSource,
+                            indication = null
+                        ) {
                             val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://github.com/RohitKSahoo/Sifer"))
                             context.startActivity(intent)
                         },
@@ -219,11 +208,15 @@ fun PermissionItem(
     statusColor: Color = SiferColors.Green,
     onClick: () -> Unit = {}
 ) {
+    val interactionSource = remember { MutableInteractionSource() }
     Box(
         modifier = Modifier
             .fillMaxWidth()
             .background(SiferColors.Grey)
-            .clickable { onClick() }
+            .clickable(
+                interactionSource = interactionSource,
+                indication = null
+            ) { onClick() }
             .padding(16.dp)
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -259,12 +252,16 @@ fun GradientPermissionItem(
     checked: Boolean,
     onClick: () -> Unit = {}
 ) {
+    val interactionSource = remember { MutableInteractionSource() }
     Box(
         modifier = Modifier
             .fillMaxWidth()
             .background(gradient)
             .border(1.dp, SiferColors.Black)
-            .clickable { onClick() }
+            .clickable(
+                interactionSource = interactionSource,
+                indication = null
+            ) { onClick() }
             .padding(16.dp)
     ) {
         Row(verticalAlignment = Alignment.Top) {

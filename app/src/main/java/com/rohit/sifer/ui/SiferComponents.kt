@@ -203,7 +203,7 @@ fun SiferTopBar() {
         verticalAlignment = Alignment.CenterVertically
     ) {
         Text(
-            text = "[v4.0.2]",
+            text = "[v4.0.9]",
             color = SiferColors.Black,
             fontSize = 10.sp,
             fontWeight = FontWeight.Black,
