@@ -10,6 +10,7 @@ import android.net.Uri
 import android.os.Build
 import android.os.PowerManager
 import android.provider.Settings
+import android.widget.Toast
 import androidx.compose.runtime.mutableStateOf
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.AndroidViewModel
@@ -18,6 +19,8 @@ import com.rohit.sifer.data.AppDatabase
 import com.rohit.sifer.data.Zone
 import com.rohit.sifer.logic.ActionEngine
 import com.rohit.sifer.logic.GeofenceManager
+import com.rohit.sifer.logic.UpdateInfo
+import com.rohit.sifer.logic.UpdateManager
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
@@ -30,6 +33,7 @@ class SiferViewModel(application: Application) : AndroidViewModel(application) {
     private val zoneDao = AppDatabase.getDatabase(application).zoneDao()
     private val geofenceManager = GeofenceManager(application)
     private val actionEngine = ActionEngine(application)
+    private val updateManager = UpdateManager(application)
     private val prefs = application.getSharedPreferences("sifer_prefs", Context.MODE_PRIVATE)
 
     // Concurrency control to prevent crashes during rapid toggling
@@ -46,15 +50,98 @@ class SiferViewModel(application: Application) : AndroidViewModel(application) {
     val hasLocationPermission = mutableStateOf(checkLocationPermission())
     val hasBackgroundLocationPermission = mutableStateOf(checkBackgroundLocationPermission())
     val hasDndPermission = mutableStateOf(checkDndPermission())
+    val hasNotificationAccess = mutableStateOf(checkNotificationAccess())
     val isBatteryOptimized = mutableStateOf(checkBatteryOptimization())
     val isAutoStartEnabled = mutableStateOf(prefs.getBoolean("auto_start_on_boot", true))
 
+    // Update State
+    val updateInfo = mutableStateOf<UpdateInfo?>(null)
+    val isCheckingForUpdates = mutableStateOf(false)
+
+    // Excluded Apps State
+    val excludedApps = mutableStateOf<Set<String>>(
+        prefs.getStringSet("excluded_apps", emptySet()) ?: emptySet()
+    )
+
+    fun toggleAppExclusion(packageName: String) {
+        val current = excludedApps.value.toMutableSet()
+        if (current.contains(packageName)) {
+            current.remove(packageName)
+        } else {
+            current.add(packageName)
+        }
+        excludedApps.value = current
+        prefs.edit().putStringSet("excluded_apps", current).apply()
+    }
+
     init {
         refreshPermissionStates()
+        triggerUpdateCheck(silent = true)
         
         // Initial sync on app start to catch if we're already in a haven
         viewModelScope.launch {
             actionEngine.refreshCurrentState()
+        }
+    }
+
+    fun triggerUpdateCheck(silent: Boolean = false) {
+        viewModelScope.launch {
+            if (!silent) isCheckingForUpdates.value = true
+            val info = updateManager.checkForUpdates()
+            updateInfo.value = info
+            if (!silent) {
+                isCheckingForUpdates.value = false
+                if (!info.hasUpdate) {
+                    Toast.makeText(context, "Sifer is up to date!", Toast.LENGTH_SHORT).show()
+                }
+            }
+        }
+    }
+
+    // In-app Update Download States
+    val downloadProgress = mutableStateOf<Float?>(null)
+    val downloadError = mutableStateOf<String?>(null)
+    var downloadedApkFile: java.io.File? = null
+
+    fun downloadUpdate() {
+        val url = updateInfo.value?.downloadUrl ?: return
+        downloadProgress.value = 0f
+        downloadError.value = null
+        downloadedApkFile = null
+
+        viewModelScope.launch {
+            updateManager.downloadApkWithProgress(
+                urlString = url,
+                fileName = "Sifer_Update.apk",
+                onProgress = { progress ->
+                    downloadProgress.value = progress
+                },
+                onComplete = { file ->
+                    downloadProgress.value = null
+                    downloadedApkFile = file
+                    checkAndInstallApk(file)
+                },
+                onError = { errorMsg ->
+                    downloadProgress.value = null
+                    downloadError.value = errorMsg
+                }
+            )
+        }
+    }
+
+    fun canInstallPackages(): Boolean {
+        return updateManager.canInstallPackages()
+    }
+
+    fun checkAndInstallApk(file: java.io.File? = null) {
+        val finalFile = file ?: downloadedApkFile ?: return
+        if (updateManager.canInstallPackages()) {
+            downloadedApkFile = null
+            updateManager.installApk(finalFile)
+        } else {
+            // Keep the file reference and request permission
+            downloadedApkFile = finalFile
+            updateManager.requestInstallPermission()
         }
     }
 
@@ -63,6 +150,7 @@ class SiferViewModel(application: Application) : AndroidViewModel(application) {
         hasBackgroundLocationPermission.value = checkBackgroundLocationPermission()
         hasDndPermission.value = checkDndPermission()
         isBatteryOptimized.value = checkBatteryOptimization()
+        hasNotificationAccess.value = checkNotificationAccess()
     }
 
     private fun checkLocationPermission(): Boolean {
@@ -82,6 +170,11 @@ class SiferViewModel(application: Application) : AndroidViewModel(application) {
         return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
             nm.isNotificationPolicyAccessGranted
         } else true
+    }
+
+    private fun checkNotificationAccess(): Boolean {
+        val packageNames = androidx.core.app.NotificationManagerCompat.getEnabledListenerPackages(context)
+        return packageNames.contains(context.packageName)
     }
 
     private fun checkBatteryOptimization(): Boolean {
@@ -106,6 +199,13 @@ class SiferViewModel(application: Application) : AndroidViewModel(application) {
             }
             context.startActivity(intent)
         }
+    }
+
+    fun openNotificationAccessSettings() {
+        val intent = Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS).apply {
+            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        }
+        context.startActivity(intent)
     }
 
     fun openBatterySettings() {

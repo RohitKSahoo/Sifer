@@ -15,17 +15,28 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.lifecycle.compose.LocalLifecycleOwner
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.Lifecycle
 import com.rohit.sifer.ui.*
 import com.rohit.sifer.ui.theme.SiferTheme
 import kotlinx.coroutines.launch
@@ -75,157 +86,281 @@ class MainActivity : ComponentActivity() {
 fun MainContainer() {
     val context = LocalContext.current
     val viewModel: SiferViewModel = viewModel()
-    var showDndDialog by remember { mutableStateOf(false) }
-    var showBackgroundLocationDialog by remember { mutableStateOf(false) }
+    val coroutineScope = rememberCoroutineScope()
     
     val pagerState = rememberPagerState(pageCount = { 3 })
-    val coroutineScope = rememberCoroutineScope()
 
     val selectedNavItem by remember {
         derivedStateOf { pagerState.currentPage }
     }
 
-    // Permission launchers
-    val backgroundLocationLauncher = rememberLauncherForActivityResult(
-        ActivityResultContracts.RequestPermission()
-    ) { granted ->
-        if (granted) {
-            viewModel.refreshPermissionStates()
-        } else {
-            Toast.makeText(context, "Background location is required for automatic protection", Toast.LENGTH_LONG).show()
-        }
+    // Permission and State
+    val hasLocation by viewModel.hasLocationPermission
+    val hasBgLocation by viewModel.hasBackgroundLocationPermission
+    val hasDnd by viewModel.hasDndPermission
+    val updateInfoState = viewModel.updateInfo.value
+
+    var isOnboardingComplete by remember {
+        mutableStateOf(hasLocation && hasBgLocation && hasDnd)
     }
 
-    val notificationLauncher = rememberLauncherForActivityResult(
-        ActivityResultContracts.RequestPermission()
-    ) { granted ->
-        if (!granted) {
-            Toast.makeText(context, "Notifications are recommended for Haven alerts", Toast.LENGTH_SHORT).show()
-        }
-    }
-
-    val foregroundLocationLauncher = rememberLauncherForActivityResult(
-        ActivityResultContracts.RequestMultiplePermissions()
-    ) { permissions ->
-        val allGranted = permissions.entries.all { it.value }
-        if (allGranted) {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                showBackgroundLocationDialog = true
-            }
-            viewModel.refreshPermissionStates()
-        } else {
-            Toast.makeText(context, "Location permissions are required", Toast.LENGTH_SHORT).show()
-        }
-    }
-
-    LaunchedEffect(Unit) {
-        val hasForeground = ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED
-        
-        if (!hasForeground) {
-            foregroundLocationLauncher.launch(arrayOf(
-                Manifest.permission.ACCESS_FINE_LOCATION,
-                Manifest.permission.ACCESS_COARSE_LOCATION
-            ))
-        } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            val hasBackground = ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_BACKGROUND_LOCATION) == PackageManager.PERMISSION_GRANTED
-            if (!hasBackground) {
-                showBackgroundLocationDialog = true
+    // Dynamic state sync when screen is loaded/resumed via lifecycle observer
+    val lifecycleOwner = LocalLifecycleOwner.current
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) {
+                viewModel.refreshPermissionStates()
+                isOnboardingComplete = hasLocation && hasBgLocation && hasDnd
+                
+                // Auto-trigger installation if permission was granted after setting redirect
+                viewModel.downloadedApkFile?.let { file ->
+                    if (viewModel.canInstallPackages()) {
+                        viewModel.checkAndInstallApk(file)
+                    }
+                }
             }
         }
-        
-        // Request notification permission for Android 13+
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            if (ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
-                notificationLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
-            }
-        }
-        
-        val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && !notificationManager.isNotificationPolicyAccessGranted) {
-            showDndDialog = true
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose {
+            lifecycleOwner.lifecycle.removeObserver(observer)
         }
     }
 
-    if (showBackgroundLocationDialog) {
-        AlertDialog(
-            onDismissRequest = { showBackgroundLocationDialog = false },
-            title = { Text("Background Location Required") },
-            text = { 
-                Text("Sifer needs 'Allow all the time' location access to detect when you enter a Haven even when the app is closed. Please select 'Allow all the time' in the next screen.") 
-            },
-            confirmButton = {
-                Button(
-                    onClick = {
-                        showBackgroundLocationDialog = false
-                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                            backgroundLocationLauncher.launch(Manifest.permission.ACCESS_BACKGROUND_LOCATION)
+    if (!isOnboardingComplete) {
+        OnboardingPermissionsScreen(
+            viewModel = viewModel,
+            onOnboardingComplete = {
+                viewModel.refreshPermissionStates()
+                isOnboardingComplete = true
+            }
+        )
+    } else {
+        // NEO-BRUTAL UPDATE DIALOG
+        updateInfoState?.let { info ->
+            if (info.hasUpdate) {
+                Dialog(
+                    onDismissRequest = { viewModel.updateInfo.value = null },
+                    properties = DialogProperties(usePlatformDefaultWidth = false)
+                ) {
+                    Box(modifier = Modifier.padding(16.dp)) {
+                        NeoBrutalCard(
+                            backgroundColor = SiferColors.White,
+                            shadowOffset = 10.dp,
+                            padding = 0.dp
+                        ) {
+                            Column {
+                                // Tactical Header Bar
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .background(SiferColors.Black)
+                                        .padding(16.dp)
+                                ) {
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Icon(
+                                            Icons.Default.Update,
+                                            contentDescription = null,
+                                            tint = SiferColors.Yellow,
+                                            modifier = Modifier.size(24.dp)
+                                        )
+                                        Spacer(modifier = Modifier.width(12.dp))
+                                        Text(
+                                            text = "PATCH AVAILABLE",
+                                            color = SiferColors.White,
+                                            fontSize = 18.sp,
+                                            fontWeight = FontWeight.Black,
+                                            letterSpacing = 1.sp
+                                        )
+                                    }
+                                }
+
+                                Column(modifier = Modifier.padding(20.dp)) {
+                                    val downloadProgress by viewModel.downloadProgress
+                                    val downloadError by viewModel.downloadError
+
+                                    if (downloadProgress != null) {
+                                        Text(
+                                            "DOWNLOADING PATCH...",
+                                            fontSize = 14.sp,
+                                            fontWeight = FontWeight.Black,
+                                            color = SiferColors.Black
+                                        )
+                                        
+                                        Spacer(modifier = Modifier.height(12.dp))
+
+                                        // NEO-BRUTAL PROGRESS BAR
+                                        Box(
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .height(24.dp)
+                                                .border(2.dp, SiferColors.Black)
+                                                .background(SiferColors.White)
+                                        ) {
+                                            Box(
+                                                modifier = Modifier
+                                                    .fillMaxHeight()
+                                                    .fillMaxWidth(fraction = downloadProgress ?: 0f)
+                                                    .background(SiferColors.Green)
+                                            )
+                                            Text(
+                                                text = "${((downloadProgress ?: 0f) * 100).toInt()}%",
+                                                modifier = Modifier.align(Alignment.Center),
+                                                color = SiferColors.Black,
+                                                fontWeight = FontWeight.Black,
+                                                fontSize = 11.sp
+                                            )
+                                        }
+
+                                        Spacer(modifier = Modifier.height(16.dp))
+                                        
+                                        Text(
+                                            "Please keep Sifer open while download is in progress.",
+                                            fontSize = 10.sp,
+                                            color = SiferColors.TextSecondary,
+                                            fontWeight = FontWeight.Medium
+                                        )
+                                    } else if (downloadError != null) {
+                                        Text(
+                                            "DOWNLOAD FAILED",
+                                            fontSize = 14.sp,
+                                            fontWeight = FontWeight.Black,
+                                            color = SiferColors.Red
+                                        )
+                                        
+                                        Spacer(modifier = Modifier.height(8.dp))
+
+                                        Text(
+                                            text = downloadError ?: "An unexpected connection error occurred.",
+                                            fontSize = 12.sp,
+                                            color = SiferColors.Black,
+                                            lineHeight = 18.sp,
+                                            fontWeight = FontWeight.Medium
+                                        )
+
+                                        Spacer(modifier = Modifier.height(20.dp))
+
+                                        Row(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            horizontalArrangement = Arrangement.spacedBy(12.dp)
+                                        ) {
+                                            SiferButton(
+                                                text = "CANCEL",
+                                                backgroundColor = SiferColors.White,
+                                                textColor = SiferColors.Black,
+                                                modifier = Modifier.weight(1f),
+                                                onClick = {
+                                                    viewModel.downloadError.value = null
+                                                    viewModel.updateInfo.value = null
+                                                }
+                                            )
+                                            SiferButton(
+                                                text = "RETRY",
+                                                backgroundColor = SiferColors.Green,
+                                                textColor = SiferColors.Black,
+                                                modifier = Modifier.weight(1.2f),
+                                                onClick = {
+                                                    viewModel.downloadUpdate()
+                                                }
+                                            )
+                                        }
+                                    } else {
+                                        Row(verticalAlignment = Alignment.CenterVertically) {
+                                            SiferBadge(
+                                                text = "v${info.latestVersion}",
+                                                backgroundColor = SiferColors.Yellow.copy(alpha = 0.2f),
+                                                textColor = SiferColors.Black
+                                            )
+                                            Spacer(modifier = Modifier.width(8.dp))
+                                            Text(
+                                                "STABLE RELEASE",
+                                                fontSize = 10.sp,
+                                                fontWeight = FontWeight.Black,
+                                                color = SiferColors.Black
+                                            )
+                                        }
+
+                                        Spacer(modifier = Modifier.height(16.dp))
+
+                                        Text(
+                                            text = info.releaseNotes ?: "Kernel stability and UI performance improvements.",
+                                            fontSize = 13.sp,
+                                            color = SiferColors.Black,
+                                            lineHeight = 20.sp,
+                                            fontWeight = FontWeight.Medium
+                                        )
+
+                                        Spacer(modifier = Modifier.height(24.dp))
+
+                                        Row(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            horizontalArrangement = Arrangement.spacedBy(12.dp)
+                                        ) {
+                                            SiferButton(
+                                                text = "LATER",
+                                                backgroundColor = SiferColors.White,
+                                                textColor = SiferColors.Black,
+                                                modifier = Modifier.weight(1f),
+                                                onClick = { viewModel.updateInfo.value = null }
+                                            )
+                                            SiferButton(
+                                                text = "UPDATE",
+                                                backgroundColor = SiferColors.Green,
+                                                textColor = SiferColors.Black,
+                                                modifier = Modifier.weight(1.2f),
+                                                onClick = {
+                                                    viewModel.downloadUpdate()
+                                                }
+                                            )
+                                        }
+                                    }
+                                }
+                            }
                         }
                     }
-                ) {
-                    Text("Grant Permission")
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { showBackgroundLocationDialog = false }) {
-                    Text("Later")
                 }
             }
-        )
-    }
-
-    if (showDndDialog) {
-        AlertDialog(
-            onDismissRequest = { showDndDialog = false },
-            title = { Text("DND Access Required") },
-            text = { 
-                Text("Sifer needs Do Not Disturb access to automatically silence your phone.") 
-            },
-            confirmButton = {
-                Button(
-                    onClick = {
-                        showDndDialog = false
-                        val intent = Intent(Settings.ACTION_NOTIFICATION_POLICY_ACCESS_SETTINGS)
-                        context.startActivity(intent)
-                    }
-                ) {
-                    Text("Continue")
-                }
-            }
-        )
-    }
-
-    Scaffold(
-        topBar = { SiferTopBar() },
-        bottomBar = {
-            SiferBottomNav(
-                selectedItem = selectedNavItem,
-                onItemSelected = { index ->
-                    coroutineScope.launch {
-                        pagerState.animateScrollToPage(index)
-                    }
-                }
-            )
         }
-    ) { padding ->
-        HorizontalPager(
-            state = pagerState,
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(padding),
-            beyondViewportPageCount = 2,
-            key = { it },
-            userScrollEnabled = false
-        ) { page ->
-            Box {
-                when (page) {
-                    0 -> HomeScreen(viewModel)
-                    1 -> AddHavenScreen(
-                        viewModel = viewModel,
-                        isActive = selectedNavItem == 1
-                    ) { 
-                        coroutineScope.launch { pagerState.animateScrollToPage(0) }
+
+        Scaffold(
+            topBar = { SiferTopBar() },
+            bottomBar = {
+                SiferBottomNav(
+                    selectedItem = selectedNavItem,
+                    onItemSelected = { index ->
+                        coroutineScope.launch {
+                            pagerState.animateScrollToPage(index)
+                        }
                     }
-                    2 -> SettingsScreen(viewModel)
+                )
+            }
+        ) { padding ->
+            HorizontalPager(
+                state = pagerState,
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(padding),
+                beyondViewportPageCount = 2,
+                key = { index -> index },
+                userScrollEnabled = false
+            ) { page ->
+                Box {
+                    when (page) {
+                        0 -> HomeScreen(viewModel)
+                        1 -> AddHavenScreen(
+                            viewModel = viewModel,
+                            isActive = selectedNavItem == 1
+                        ) {
+                            coroutineScope.launch { pagerState.animateScrollToPage(0) }
+                        }
+                        2 -> {
+                            var activeSubScreen by remember { mutableStateOf<String?>(null) }
+                            if (activeSubScreen == "excluded_apps") {
+                                ExcludedAppsScreen(viewModel) { activeSubScreen = null }
+                            } else {
+                                SettingsScreen(viewModel) { activeSubScreen = "excluded_apps" }
+                            }
+                        }
+                    }
                 }
             }
         }

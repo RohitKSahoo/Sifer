@@ -30,12 +30,14 @@ import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 
 @Composable
-fun SettingsScreen(viewModel: SiferViewModel) {
+fun SettingsScreen(viewModel: SiferViewModel, onNavigateToExcludedApps: () -> Unit) {
     val hasLocation by viewModel.hasLocationPermission
     val hasBgLocation by viewModel.hasBackgroundLocationPermission
     val hasDnd by viewModel.hasDndPermission
+    val hasNotificationAccess by viewModel.hasNotificationAccess
     val isBatteryOptimized by viewModel.isBatteryOptimized
     val isAutoStartEnabled by viewModel.isAutoStartEnabled
+    val isCheckingUpdates by viewModel.isCheckingForUpdates
     
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
@@ -60,10 +62,6 @@ fun SettingsScreen(viewModel: SiferViewModel) {
             contentPadding = PaddingValues(bottom = 80.dp)
         ) {
             item {
-                Spacer(modifier = Modifier.height(24.dp))
-            }
-
-            item {
                 PermissionSectionHeader(number = "01", title = "CORE PERMISSIONS")
             }
 
@@ -73,7 +71,7 @@ fun SettingsScreen(viewModel: SiferViewModel) {
                     title = "PRECISE LOCATION",
                     status = if (hasLocation) "ACTIVE" else "REQUIRED",
                     statusColor = if (hasLocation) SiferColors.Green else SiferColors.Red,
-                    description = "Needed to define Haven boundaries.",
+                    description = "Needed to set the boundaries XD",
                     checked = hasLocation,
                     onClick = { if (!hasLocation) viewModel.openLocationSettings() }
                 )
@@ -87,7 +85,7 @@ fun SettingsScreen(viewModel: SiferViewModel) {
                         title = "BACKGROUND LOCATION",
                         status = if (hasBgLocation) "ACTIVE" else "REQUIRED",
                         statusColor = if (hasBgLocation) SiferColors.Green else SiferColors.Red,
-                        description = "Set to 'Allow all the time' for automatic triggers.",
+                        description = "No Spying ;) Only for automatic protection",
                         checked = hasBgLocation,
                         onClick = { viewModel.openLocationSettings() }
                     )
@@ -102,9 +100,23 @@ fun SettingsScreen(viewModel: SiferViewModel) {
                     title = "DND ACCESS",
                     status = if (hasDnd) "ACTIVE" else "OFF",
                     statusColor = if (hasDnd) SiferColors.Green else SiferColors.Red,
-                    description = "Override silence during critical sifer alerts.",
+                    description = "To completely mute your phone.",
                     checked = hasDnd,
                     onClick = { viewModel.openDndSettings() }
+                )
+            }
+
+            item { Spacer(modifier = Modifier.height(12.dp)) }
+
+            item {
+                PermissionItem(
+                    icon = Icons.Default.NotificationsActive,
+                    title = "NOTIFICATION ACCESS",
+                    status = if (hasNotificationAccess) "ACTIVE" else "OFF",
+                    statusColor = if (hasNotificationAccess) SiferColors.Green else SiferColors.Red,
+                    description = "Bypass silencing rule for Excluded Apps.",
+                    checked = hasNotificationAccess,
+                    onClick = { viewModel.openNotificationAccessSettings() }
                 )
             }
 
@@ -135,11 +147,101 @@ fun SettingsScreen(viewModel: SiferViewModel) {
                 GradientPermissionItem(
                     icon = Icons.Default.PowerSettingsNew,
                     title = "AUTO-START ON BOOT",
-                    description = "Initialize Sifer kernel immediately upon device wake.",
+                    description = "So we can serve you all the time '-'",
                     gradient = Brush.verticalGradient(listOf(Color(0xFF80CBC4), Color(0xFFDCEDC8))),
                     checked = isAutoStartEnabled,
                     onClick = { viewModel.toggleAutoStart(!isAutoStartEnabled) }
                 )
+            }
+
+            item { Spacer(modifier = Modifier.height(12.dp)) }
+
+            item {
+                val exclInteractionSource = remember { MutableInteractionSource() }
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(SiferColors.Grey)
+                        .clickable(
+                            interactionSource = exclInteractionSource,
+                            indication = null
+                        ) { onNavigateToExcludedApps() }
+                        .padding(16.dp)
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Box(
+                            modifier = Modifier
+                                .size(40.dp)
+                                .border(1.dp, SiferColors.Black)
+                                .background(SiferColors.White),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(Icons.Default.AppBlocking, contentDescription = null, tint = SiferColors.Black, modifier = Modifier.size(20.dp))
+                        }
+                        Spacer(modifier = Modifier.width(16.dp))
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(text = "EXCLUDED APPS", color = SiferColors.Black, fontWeight = FontWeight.Black, fontSize = 14.sp)
+                            Text(text = "Bypass automatic DND for specific apps.", color = SiferColors.TextSecondary, fontSize = 11.sp)
+                        }
+                        Icon(Icons.Default.ChevronRight, contentDescription = null, tint = SiferColors.Black, modifier = Modifier.size(16.dp))
+                    }
+                }
+            }
+
+            item { Spacer(modifier = Modifier.height(12.dp)) }
+
+            item {
+                val interactionSource = remember { MutableInteractionSource() }
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(SiferColors.Grey)
+                        .clickable(
+                            interactionSource = interactionSource,
+                            indication = null
+                        ) { viewModel.triggerUpdateCheck(silent = false) }
+                        .padding(16.dp)
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Box(
+                            modifier = Modifier
+                                .size(40.dp)
+                                .border(1.dp, SiferColors.Black)
+                                .background(SiferColors.White),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            if (isCheckingUpdates) {
+                                CircularProgressIndicator(
+                                    modifier = Modifier.size(20.dp),
+                                    strokeWidth = 2.dp,
+                                    color = SiferColors.Black
+                                )
+                            } else {
+                                Icon(Icons.Default.Refresh, contentDescription = null, tint = SiferColors.Black, modifier = Modifier.size(20.dp))
+                            }
+                        }
+                        Spacer(modifier = Modifier.width(16.dp))
+                        Column(modifier = Modifier.weight(1f)) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text(
+                                    text = "LET'S UPDATE?", 
+                                    color = SiferColors.Black, 
+                                    fontWeight = FontWeight.Black, 
+                                    fontSize = 14.sp,
+                                    modifier = Modifier.weight(1f, fill = false)
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                SiferBadge(
+                                    text = if (isCheckingUpdates) "SEARCHING" else "CHECK",
+                                    backgroundColor = (if (isCheckingUpdates) SiferColors.Yellow else SiferColors.LightBlue).copy(alpha = 0.2f),
+                                    textColor = SiferColors.Black
+                                )
+                            }
+                            Text(text = "Or u can check my github page :)", color = SiferColors.TextSecondary, fontSize = 11.sp)
+                        }
+                        Icon(Icons.Default.ChevronRight, contentDescription = null, tint = SiferColors.Black, modifier = Modifier.size(16.dp))
+                    }
+                }
             }
 
             item { Spacer(modifier = Modifier.height(32.dp)) }
@@ -232,7 +334,13 @@ fun PermissionItem(
             Spacer(modifier = Modifier.width(16.dp))
             Column(modifier = Modifier.weight(1f)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(text = title, color = SiferColors.Black, fontWeight = FontWeight.Black, fontSize = 14.sp)
+                    Text(
+                        text = title, 
+                        color = SiferColors.Black, 
+                        fontWeight = FontWeight.Black, 
+                        fontSize = 14.sp,
+                        modifier = Modifier.weight(1f, fill = false)
+                    )
                     Spacer(modifier = Modifier.width(8.dp))
                     SiferBadge(text = status, backgroundColor = statusColor.copy(alpha = 0.2f), textColor = statusColor)
                 }

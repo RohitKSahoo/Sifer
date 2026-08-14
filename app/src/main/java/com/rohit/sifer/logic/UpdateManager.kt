@@ -12,6 +12,8 @@ import com.rohit.sifer.BuildConfig
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
+import android.os.Build
+import android.provider.Settings
 import java.io.File
 import java.net.HttpURLConnection
 import java.net.URL
@@ -23,9 +25,35 @@ data class UpdateInfo(
     val releaseNotes: String?
 )
 
+data class RemoteConfig(
+    val welcomeMessage: String = "Let's take a quick look at how to protect your focus.",
+    val minRadius: Float = 50f,
+    val maxRadius: Float = 500f,
+    val maintenanceMode: Boolean = false
+)
+
 class UpdateManager(private val context: Context) {
 
     private val GITHUB_API_URL = "https://api.github.com/repos/RohitKSahoo/Sifer/releases/latest"
+    private val REMOTE_CONFIG_URL = "https://raw.githubusercontent.com/RohitKSahoo/Sifer/main/remote_config.json"
+
+    suspend fun fetchRemoteConfig(): RemoteConfig = withContext(Dispatchers.IO) {
+        try {
+            val url = URL(REMOTE_CONFIG_URL)
+            val connection = url.openConnection() as HttpURLConnection
+            val response = connection.inputStream.bufferedReader().readText()
+            val json = JSONObject(response)
+
+            RemoteConfig(
+                welcomeMessage = json.optString("welcome_message", "Let's take a quick look at how to protect your focus."),
+                minRadius = json.optDouble("min_radius", 50.0).toFloat(),
+                maxRadius = json.optDouble("max_radius", 500.0).toFloat(),
+                maintenanceMode = json.optBoolean("maintenance_mode", false)
+            )
+        } catch (e: Exception) {
+            RemoteConfig() // Return defaults on error
+        }
+    }
 
     suspend fun checkForUpdates(): UpdateInfo = withContext(Dispatchers.IO) {
         try {
@@ -40,7 +68,6 @@ class UpdateManager(private val context: Context) {
             val latestTag = json.getString("tag_name").replace("v", "")
             val currentVersion = BuildConfig.VERSION_NAME
             
-            // Basic semantic version comparison (1.1 > 1.0)
             val hasUpdate = isNewerVersion(currentVersion, latestTag)
             
             var downloadUrl: String? = null
@@ -81,39 +108,105 @@ class UpdateManager(private val context: Context) {
         }
     }
 
-    fun downloadAndInstall(url: String, fileName: String = "Sifer_Update.apk") {
-        val downloadManager = context.getSystemService(Context.DOWNLOAD_SERVICE) as DownloadManager
-        val request = DownloadManager.Request(Uri.parse(url))
-            .setTitle("Sifer Update")
-            .setDescription("Downloading latest version...")
-            .setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED)
-            .setDestinationInExternalFilesDir(context, Environment.DIRECTORY_DOWNLOADS, fileName)
-            .setAllowedOverMetered(true)
-            .setAllowedOverRoaming(true)
-
-        val downloadId = downloadManager.enqueue(request)
-
-        val onComplete = object : BroadcastReceiver() {
-            override fun onReceive(context: Context, intent: Intent) {
-                val id = intent.getLongExtra(DownloadManager.EXTRA_DOWNLOAD_ID, -1)
-                if (id == downloadId) {
-                    installApk(fileName)
-                    context.unregisterReceiver(this)
-                }
-            }
+    fun canInstallPackages(): Boolean {
+        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            context.packageManager.canRequestPackageInstalls()
+        } else {
+            true
         }
-        context.registerReceiver(onComplete, IntentFilter(DownloadManager.ACTION_DOWNLOAD_COMPLETE))
     }
 
-    private fun installApk(fileName: String) {
-        val file = File(context.getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS), fileName)
-        if (file.exists()) {
-            val uri = FileProvider.getUriForFile(
-                context,
-                "${context.packageName}.fileprovider",
-                file
-            )
+    fun requestInstallPermission() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val intent = Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES).apply {
+                data = Uri.parse("package:${context.packageName}")
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            }
+            context.startActivity(intent)
+        }
+    }
+
+    suspend fun downloadApkWithProgress(
+        urlString: String,
+        fileName: String = "Sifer_Update.apk",
+        onProgress: (Float) -> Unit,
+        onComplete: (File) -> Unit,
+        onError: (String) -> Unit
+    ) = withContext(Dispatchers.IO) {
+        try {
+            var currentUrl = urlString
+            var connection: HttpURLConnection
+            var status: Int
+            var redirectCount = 0
+            val maxRedirects = 5
+
+            var url = URL(currentUrl)
+            while (true) {
+                connection = url.openConnection() as HttpURLConnection
+                connection.instanceFollowRedirects = true
+                connection.requestMethod = "GET"
+                connection.connect()
+
+                status = connection.responseCode
+                if (status == HttpURLConnection.HTTP_MOVED_TEMP || 
+                    status == HttpURLConnection.HTTP_MOVED_PERM || 
+                    status == 307 || status == 308) {
+                    if (redirectCount >= maxRedirects) {
+                        onError("Too many redirects")
+                        return@withContext
+                    }
+                    val newUrl = connection.getHeaderField("Location")
+                    url = URL(newUrl)
+                    redirectCount++
+                    continue
+                }
+                break
+            }
+
+            if (status != HttpURLConnection.HTTP_OK) {
+                onError("Server returned code $status")
+                return@withContext
+            }
+
+            val fileLength = connection.contentLength
+            val input = connection.inputStream
+            val file = File(context.getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS), fileName)
             
+            // Delete old file if exists
+            if (file.exists()) {
+                file.delete()
+            }
+
+            val output = file.outputStream()
+            val data = ByteArray(8192)
+            var total: Long = 0
+            var count: Int
+
+            while (input.read(data).also { count = it } != -1) {
+                total += count
+                if (fileLength > 0) {
+                    onProgress(total.toFloat() / fileLength.toFloat())
+                }
+                output.write(data, 0, count)
+            }
+
+            output.flush()
+            output.close()
+            input.close()
+
+            withContext(Dispatchers.Main) {
+                onComplete(file)
+            }
+        } catch (e: Exception) {
+            withContext(Dispatchers.Main) {
+                onError(e.localizedMessage ?: "Unknown download error")
+            }
+        }
+    }
+
+    fun installApk(file: File) {
+        if (file.exists()) {
+            val uri = FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", file)
             val intent = Intent(Intent.ACTION_VIEW).apply {
                 setDataAndType(uri, "application/vnd.android.package-archive")
                 addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)

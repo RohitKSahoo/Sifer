@@ -11,11 +11,9 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.outlined.AddLocationAlt
 import androidx.compose.material.icons.outlined.Home
-import androidx.compose.material.icons.outlined.Layers
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -33,6 +31,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.rohit.sifer.BuildConfig
 import com.rohit.sifer.ui.theme.*
 
 object SiferColors {
@@ -58,7 +57,6 @@ object SiferColors {
 
 @Composable
 fun GridBackground(modifier: Modifier = Modifier) {
-    // Optimization: Use drawWithCache to prevent redrawing the grid every frame
     Spacer(
         modifier = modifier
             .fillMaxSize()
@@ -203,7 +201,7 @@ fun SiferTopBar() {
         verticalAlignment = Alignment.CenterVertically
     ) {
         Text(
-            text = "[v4.0.9]",
+            text = "[v${BuildConfig.VERSION_NAME}]",
             color = SiferColors.Black,
             fontSize = 10.sp,
             fontWeight = FontWeight.Black,
@@ -211,15 +209,14 @@ fun SiferTopBar() {
             modifier = Modifier.width(60.dp)
         )
 
-        // Feature: Improved Font and Style for branding
         Text(
             text = "SIFER",
             color = SiferColors.Black,
             fontWeight = FontWeight.ExtraBold,
             fontStyle = FontStyle.Normal,
-            fontSize = 36.sp, // Slightly larger
-            fontFamily = FontFamily.SansSerif, // Bold clean Sans
-            letterSpacing = 6.sp, // Tactical spacing
+            fontSize = 36.sp,
+            fontFamily = FontFamily.SansSerif,
+            letterSpacing = 6.sp,
             modifier = Modifier.weight(1f),
             textAlign = androidx.compose.ui.text.style.TextAlign.Center
         )
@@ -241,7 +238,8 @@ fun SiferTopBar() {
 @Composable
 fun SiferBottomNav(
     selectedItem: Int,
-    onItemSelected: (Int) -> Unit
+    onItemSelected: (Int) -> Unit,
+    modifier: Modifier = Modifier
 ) {
     val items = listOf(
         NavItem("Home", Icons.Outlined.Home),
@@ -250,7 +248,7 @@ fun SiferBottomNav(
     )
 
     Row(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxWidth()
             .background(SiferColors.White)
             .navigationBarsPadding()

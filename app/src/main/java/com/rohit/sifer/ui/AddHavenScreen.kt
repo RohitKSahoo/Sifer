@@ -255,9 +255,7 @@ fun AddHavenScreen(viewModel: SiferViewModel, isActive: Boolean, onZoneAdded: ()
                 mapView 
             },
             modifier = Modifier.fillMaxSize(),
-            update = { view ->
-                view.invalidate()
-            }
+            update = {}
         )
 
         // CENTER TARGET
@@ -276,8 +274,7 @@ fun AddHavenScreen(viewModel: SiferViewModel, isActive: Boolean, onZoneAdded: ()
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(12.dp)
-                .statusBarsPadding()
+                .padding(top = 0.dp, start = 12.dp, end = 12.dp, bottom = 8.dp)
         ) {
             NeoBrutalCard(padding = 0.dp, shadowOffset = 2.dp) {
                 Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(horizontal = 8.dp, vertical = 0.dp)) {
@@ -285,7 +282,7 @@ fun AddHavenScreen(viewModel: SiferViewModel, isActive: Boolean, onZoneAdded: ()
                     TextField(
                         value = searchQuery,
                         onValueChange = { searchQuery = it },
-                        placeholder = { Text("Search location...", color = SiferColors.MediumGrey, fontSize = 13.sp) },
+                        placeholder = { Text("Search location...", color = SiferColors.Black, fontSize = 13.sp) },
                         modifier = Modifier.weight(1f),
                         singleLine = true,
                         textStyle = TextStyle(color = SiferColors.Black, fontSize = 14.sp),
@@ -376,7 +373,6 @@ fun AddHavenScreen(viewModel: SiferViewModel, isActive: Boolean, onZoneAdded: ()
             Column(
                 modifier = Modifier
                     .background(SiferColors.White, RoundedCornerShape(4.dp))
-                    .border(2.dp, SiferColors.Black, RoundedCornerShape(4.dp))
             ) {
                 IconButton(onClick = { mapView.controller.zoomIn() }, modifier = Modifier.size(36.dp)) {
                     Icon(Icons.Default.Add, contentDescription = "Zoom In", tint = SiferColors.Black, modifier = Modifier.size(20.dp))
@@ -392,7 +388,7 @@ fun AddHavenScreen(viewModel: SiferViewModel, isActive: Boolean, onZoneAdded: ()
                 containerColor = SiferColors.White,
                 contentColor = SiferColors.Black,
                 shape = RoundedCornerShape(4.dp),
-                modifier = Modifier.size(36.dp).border(2.dp, SiferColors.Black, RoundedCornerShape(4.dp)),
+                modifier = Modifier.size(36.dp),
                 elevation = FloatingActionButtonDefaults.elevation(0.dp, 0.dp)
             ) {
                 Icon(Icons.Default.MyLocation, contentDescription = "My Location", tint = SiferColors.Black, modifier = Modifier.size(18.dp))
@@ -415,7 +411,7 @@ fun AddHavenScreen(viewModel: SiferViewModel, isActive: Boolean, onZoneAdded: ()
                         TextField(
                             value = zoneName,
                             onValueChange = { zoneName = it },
-                            placeholder = { Text("Haven Name (e.g. Home)", color = SiferColors.MediumGrey, fontSize = 13.sp) },
+                            placeholder = { Text("Enter Haven Name (e.g. College)", color = SiferColors.Black, fontSize = 13.sp) },
                             modifier = Modifier.fillMaxWidth(),
                             singleLine = true,
                             textStyle = TextStyle(color = SiferColors.Black, fontSize = 13.sp),
