@@ -37,6 +37,9 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.Lifecycle
+import androidx.work.*
+import com.rohit.sifer.logic.UpdateWorker
+import java.util.concurrent.TimeUnit
 import com.rohit.sifer.ui.*
 import com.rohit.sifer.ui.theme.SiferTheme
 import kotlinx.coroutines.launch
@@ -44,8 +47,13 @@ import org.osmdroid.config.Configuration
 import java.io.File
 
 class MainActivity : ComponentActivity() {
+    private val triggerUpdateImmediately = mutableStateOf(false)
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        
+        triggerUpdateImmediately.value = intent?.getBooleanExtra("trigger_update_check", false) == true
+        scheduleUpdateWorker()
         
         // OSMdroid Configuration
         val osmConfig = Configuration.getInstance()
@@ -76,17 +84,54 @@ class MainActivity : ComponentActivity() {
 
         setContent {
             SiferTheme {
-                MainContainer()
+                MainContainer(
+                    triggerUpdateImmediately = triggerUpdateImmediately.value,
+                    onResetUpdateTrigger = { triggerUpdateImmediately.value = false }
+                )
             }
         }
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        if (intent.getBooleanExtra("trigger_update_check", false)) {
+            triggerUpdateImmediately.value = true
+        }
+    }
+
+    private fun scheduleUpdateWorker() {
+        val workRequest = PeriodicWorkRequestBuilder<UpdateWorker>(1, TimeUnit.DAYS)
+            .setConstraints(
+                Constraints.Builder()
+                    .setRequiredNetworkType(NetworkType.CONNECTED)
+                    .build()
+            )
+            .build()
+
+        WorkManager.getInstance(applicationContext).enqueueUniquePeriodicWork(
+            "UpdateCheckWork",
+            ExistingPeriodicWorkPolicy.KEEP,
+            workRequest
+        )
     }
 }
 
 @Composable
-fun MainContainer() {
+fun MainContainer(
+    triggerUpdateImmediately: Boolean = false,
+    onResetUpdateTrigger: () -> Unit = {}
+) {
     val context = LocalContext.current
     val viewModel: SiferViewModel = viewModel()
     val coroutineScope = rememberCoroutineScope()
+
+    LaunchedEffect(triggerUpdateImmediately) {
+        if (triggerUpdateImmediately) {
+            viewModel.triggerUpdateCheck(silent = false)
+            onResetUpdateTrigger()
+        }
+    }
     
     val pagerState = rememberPagerState(pageCount = { 3 })
 
